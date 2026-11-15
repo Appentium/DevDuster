@@ -33,6 +33,16 @@ public final class SizeCalculator: Sendable {
         return total
     }
 
+    func allocatedSize(of info: stat) -> Int64 {
+        guard info.st_mode & S_IFMT == S_IFREG else { return 0 }
+        let bytes = Int64(info.st_blocks) * 512
+        guard info.st_nlink > 1 else { return bytes }
+        let isFirstSighting = seenLinks.withLock {
+            $0.insert(Inode(device: info.st_dev, number: UInt64(info.st_ino))).inserted
+        }
+        return isFirstSighting ? bytes : 0
+    }
+
     private func size(of file: URL, device: dev_t) -> Int64 {
         guard let values = try? file.resourceValues(forKeys: Self.keys), values.isRegularFile == true else { return 0 }
         let bytes = Int64(values.totalFileAllocatedSize ?? 0)

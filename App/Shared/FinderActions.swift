@@ -4,6 +4,12 @@ import Foundation
 enum FinderActions {
     @MainActor
     static func reveal(_ url: URL) {
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        reveal([url])
+    }
+
+    @MainActor
+    static func reveal(_ urls: [URL]) {
+        guard !urls.isEmpty else { return }
+        NSWorkspace.shared.activateFileViewerSelecting(urls)
     }
 }

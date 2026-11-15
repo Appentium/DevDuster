@@ -16,6 +16,12 @@ public struct RuleCatalog: Sendable {
         }
     }
 
+    public static let userSelected = Rule(
+        id: "user.selected", title: "Selected by user", tier: .review,
+        target: .userSelected,
+        regenerate: "Chosen by you in Disk Map or Large Files; not regenerated."
+    )
+
     private static let builtIn: [Rule] = [
         // Order is precedence: earlier rules claim paths first, so specific rules precede the broad globs.
         Rule(
