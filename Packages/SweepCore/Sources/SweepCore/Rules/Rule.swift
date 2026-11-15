@@ -3,6 +3,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
         case home([String])
         case project(directory: String, markers: [String])
         case dockerPrune
+        case userSelected
     }
 
     public enum Pick: Sendable, Hashable {

@@ -81,4 +81,64 @@ import Testing
         #expect(try denyGuard.check(cache, rule: try fixture.rule("caches")).filePath == cache.filePath)
         #expect(try denyGuard.check(build, rule: try fixture.rule("project.flutter-build")).filePath == build.filePath)
     }
+
+    @Test(arguments: [
+        "home/Library/Keychains/login.keychain-db",
+        "home/Library/Mobile Documents/com~apple~CloudDocs/doc.txt",
+        "home/Library/CloudStorage/Dropbox/doc.txt",
+        "home/Library/Messages/chat.db",
+        "home/Library/Mail/V10/mail.emlx",
+        "home/Library/Photos/Libraries/x",
+        "home/Pictures/Photos Library.photoslibrary/database/Photos.sqlite",
+    ])
+    func userSelectedRefusesProtectedHomeData(path: String) throws {
+        let fixture = try Fixture()
+        let url = try fixture.file(path)
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+        #expect(throws: DenyGuard.Refusal.protected) { try denyGuard.check(url, rule: RuleCatalog.userSelected) }
+    }
+
+    @Test(arguments: ["/System/Library/CoreServices", "/usr/lib/dyld", "/bin/zsh", "/Library/Preferences", "/Users", "/private/tmp", "/"])
+    func userSelectedRefusesSystemPaths(path: String) throws {
+        let fixture = try Fixture()
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+        #expect(throws: DenyGuard.Refusal.self) { try denyGuard.check(URL(filePath: path), rule: RuleCatalog.userSelected) }
+    }
+
+    @Test func userSelectedRefusesHomeVolumeRootsAndSymlinkToProtected() throws {
+        let fixture = try Fixture()
+        try fixture.file("home/Library/Keychains/login.keychain-db")
+        try fixture.symlink("home/Downloads/keys-link", to: fixture.url("home/Library/Keychains/login.keychain-db"))
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+
+        #expect(throws: DenyGuard.Refusal.homeOrVolumeRoot) { try denyGuard.check(fixture.home, rule: RuleCatalog.userSelected) }
+        for volume in VolumeService(home: fixture.home).volumes() {
+            #expect(throws: DenyGuard.Refusal.self) { try denyGuard.check(volume.url, rule: RuleCatalog.userSelected) }
+        }
+        #expect(throws: DenyGuard.Refusal.protected) {
+            try denyGuard.check(fixture.url("home/Downloads/keys-link"), rule: RuleCatalog.userSelected)
+        }
+    }
+
+    @Test(arguments: [
+        "home/Applications/Demo.app/Contents/MacOS/Demo",
+        "home/Library/Containers/com.example.app/Data/state.db",
+        "home/Library/Group Containers/group.example/shared.bin",
+    ])
+    func userSelectedRefusesInsideAppBundleAndContainers(path: String) throws {
+        let fixture = try Fixture()
+        let url = try fixture.file(path)
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+        #expect(throws: DenyGuard.Refusal.protected) { try denyGuard.check(url, rule: RuleCatalog.userSelected) }
+    }
+
+    @Test func userSelectedAllowsPlainFileInHomeAndScannerNeverOffersIt() async throws {
+        let fixture = try Fixture()
+        let movie = try fixture.file("home/Downloads/movie.mkv")
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+
+        #expect(try denyGuard.check(movie, rule: RuleCatalog.userSelected).filePath == movie.filePath)
+        let report = await fixture.scan()
+        #expect(report.items.allSatisfy { $0.rule.target != .userSelected })
+    }
 }

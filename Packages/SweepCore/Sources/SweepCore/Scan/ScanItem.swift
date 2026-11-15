@@ -6,6 +6,10 @@ public struct ScanItem: Sendable, Hashable, Identifiable {
     public let bytes: Int64
 
     public var id: String { rule.id + ":" + url.filePath }
+
+    public static func userSelected(url: URL, bytes: Int64) -> ScanItem {
+        ScanItem(rule: RuleCatalog.userSelected, url: url, bytes: bytes)
+    }
 }
 
 public struct SkippedRule: Sendable, Hashable {
