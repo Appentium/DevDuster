@@ -44,12 +44,12 @@ struct ScanCommand: AsyncParsableCommand {
         var lines: [String] = []
         for group in groups(report) {
             let total = group.items.reduce(0) { $0 + $1.bytes }
-            lines.append("[\(group.rule.tier.rawValue)] \(group.rule.title): \(size(total)) in \(group.items.count) item(s)")
-            lines += group.items.map { "  \(size($0.bytes).padding(toLength: 10, withPad: " ", startingAt: 0)) \($0.url.path(percentEncoded: false))" }
+            lines.append("[\(group.rule.tier.rawValue)] \(group.rule.title): \(total.fileSize) in \(group.items.count) item(s)")
+            lines += group.items.map { "  \($0.bytes.fileSize.padding(toLength: 10, withPad: " ", startingAt: 0)) \($0.url.path(percentEncoded: false))" }
         }
         lines += report.skipped.map { "Skipped \($0.rule.title): \($0.runningProcess) is running" }
-        lines += report.skippedItems.map { "Skipped \(size($0.item.bytes)) \($0.item.url.path(percentEncoded: false)): quit \($0.runningApp) to clean it" }
-        lines.append("Total: \(size(report.totalBytes)) in \(report.items.count) item(s)")
+        lines += report.skippedItems.map { "Skipped \($0.item.bytes.fileSize) \($0.item.url.path(percentEncoded: false)): quit \($0.runningApp) to clean it" }
+        lines.append("Total: \(report.totalBytes.fileSize) in \(report.items.count) item(s)")
         return lines.joined(separator: "\n")
     }
 
@@ -71,10 +71,6 @@ struct ScanCommand: AsyncParsableCommand {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
         return String(decoding: try encoder.encode(output), as: UTF8.self)
-    }
-
-    private func size(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }
 
