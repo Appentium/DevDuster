@@ -1,0 +1,3 @@
+import Dispatch
+
+dispatchMain()

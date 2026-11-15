@@ -1,0 +1,92 @@
+name: Sweep
+options:
+  deploymentTarget:
+    macOS: "27.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    DEVELOPMENT_TEAM: 4GAP4FSZZS
+    CODE_SIGN_STYLE: Automatic
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+    GCC_TREAT_WARNINGS_AS_ERRORS: YES
+    ENABLE_HARDENED_RUNTIME: YES
+    ENABLE_APP_SANDBOX: NO
+    LM_SKIP_METADATA_EXTRACTION: YES
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  SweepCore:
+    path: Packages/SweepCore
+  swift-argument-parser:
+    url: https://github.com/apple/swift-argument-parser
+    from: 1.5.0
+targets:
+  Sweep:
+    type: application
+    platform: macOS
+    sources:
+      - App
+      - path: Helper/com.appentium.sweep.helper.plist
+        buildPhase:
+          copyFiles:
+            destination: wrapper
+            subpath: Contents/Library/LaunchDaemons
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.appentium.sweep
+        PRODUCT_NAME: Sweep
+        EXECUTABLE_NAME: SweepApp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Sweep
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+    dependencies:
+      - package: SweepCore
+      - target: SweepHelper
+        link: false
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
+      - target: SweepCLI
+        link: false
+        embed: true
+        codeSign: true
+        copy:
+          destination: executables
+  SweepHelper:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Helper
+        excludes: ["*.plist"]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.appentium.sweep.helper
+        PRODUCT_NAME: SweepHelper
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
+    dependencies:
+      - package: SweepCore
+  SweepCLI:
+    type: tool
+    platform: macOS
+    sources: [CLI]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.appentium.sweep.cli
+        PRODUCT_NAME: sweep
+        GENERATE_INFOPLIST_FILE: YES
+        CREATE_INFOPLIST_SECTION_IN_BINARY: YES
+    dependencies:
+      - package: SweepCore
+      - package: swift-argument-parser
+        product: ArgumentParser
+schemes:
+  Sweep:
+    build:
+      targets:
+        Sweep: all
+    run:
+      config: Debug
