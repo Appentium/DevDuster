@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 import SweepCore
@@ -80,10 +79,8 @@ import SweepCore
     var hasScanned = false
     var progressPath = ""
     var filesScanned = 0
-    var moveToTrash = true
     var pendingDeletion: [LargeFile] = []
-    var showDeleteConfirmation = false
-    var errorMessage: String?
+    var cleanSession = CleanSessionModel()
 
     private var scanTask: Task<Void, Never>?
 
@@ -107,10 +104,6 @@ import SweepCore
         selectedFiles.reduce(0) { $0 + $1.bytes }
     }
 
-    var totalBytes: Int64 {
-        files.reduce(0) { $0 + $1.bytes }
-    }
-
     var pendingBytes: Int64 {
         pendingDeletion.reduce(0) { $0 + $1.bytes }
     }
@@ -122,12 +115,12 @@ import SweepCore
 
     func startScan() {
         scanTask?.cancel()
+        cleanSession.dismissSummary()
         volumes = volumeService.volumes().filter { !$0.isReadOnly }
         files = []
         selection = []
         progressPath = ""
         filesScanned = 0
-        errorMessage = nil
         scanning = true
         hasScanned = true
 
@@ -171,40 +164,26 @@ import SweepCore
     }
 
     func revealInFinder(_ targets: [LargeFile]) {
-        guard !targets.isEmpty else { return }
-        NSWorkspace.shared.activateFileViewerSelecting(targets.map(\.url))
+        FinderActions.reveal(targets.map(\.url))
     }
 
     func requestDelete(_ targets: [LargeFile]) {
         guard !targets.isEmpty else { return }
         pendingDeletion = targets
-        showDeleteConfirmation = true
+        cleanSession.requestConfirmation()
     }
 
     func confirmDelete() async {
         let targets = pendingDeletion
         pendingDeletion = []
-        showDeleteConfirmation = false
         guard !targets.isEmpty else { return }
 
         let items = targets.map { ScanItem.userSelected(url: $0.url, bytes: $0.bytes) }
-        let mode: CleanMode = moveToTrash ? .trash : .delete
-        let results = await Cleaner(catalog: catalog).clean(items: items, mode: mode)
+        let cleanedIDs = await cleanSession.clean(items: items, catalog: catalog)
+        guard !cleanedIDs.isEmpty else { return }
 
-        let removedIDs = Set(results.filter { $0.error == nil }.map(\.item.url.path))
-        files.removeAll { removedIDs.contains($0.path) }
-        selection.subtract(removedIDs)
-
-        let failures = results.compactMap { result -> String? in
-            guard let error = result.error else { return nil }
-            switch error {
-            case .refused(let refusal): return "\(result.item.url.lastPathComponent): \(refusal.reason)"
-            case .dockerNotRunning: return "Docker is not running."
-            case .failed(let message): return "\(result.item.url.lastPathComponent): \(message)"
-            }
-        }
-        if !failures.isEmpty {
-            errorMessage = failures.joined(separator: "\n")
-        }
+        let removedPaths = Set(items.filter { cleanedIDs.contains($0.id) }.map { $0.url.path(percentEncoded: false) })
+        files.removeAll { removedPaths.contains($0.path) }
+        selection.subtract(removedPaths)
     }
 }

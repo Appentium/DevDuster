@@ -100,18 +100,7 @@ final class CleanSessionModel {
         case .failed(let message):
             return message
         case .refused(let refusal):
-            switch refusal {
-            case .missing:
-                return "Refused: item no longer exists."
-            case .tooShallow:
-                return "Refused: path is too close to filesystem root."
-            case .homeOrVolumeRoot:
-                return "Refused: cannot remove home or volume root."
-            case .protected:
-                return "Refused: protected system or personal location."
-            case .outsideRule:
-                return "Refused: path is outside its rule's scope."
-            }
+            return refusal.reason
         }
     }
 }

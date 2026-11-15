@@ -7,6 +7,8 @@ struct RootView: View {
     @State private var dashboardModel = DashboardModel()
     @State private var cleanerModel = CleanerModel()
     @State private var flutterModel = FlutterProjectsModel()
+    @State private var diskMapModel = DiskMapModel()
+    @State private var largeFilesModel = LargeFilesModel()
 
     var body: some View {
         NavigationSplitView {
@@ -41,6 +43,10 @@ struct RootView: View {
             CleanerView(model: cleanerModel)
         case .flutterProjects:
             FlutterProjectsView(model: flutterModel)
+        case .diskMap:
+            DiskMapView(model: diskMapModel)
+        case .largeFiles:
+            LargeFilesView(model: largeFilesModel)
         case nil:
             ContentUnavailableView("Select a Section", systemImage: "sidebar.left")
         }

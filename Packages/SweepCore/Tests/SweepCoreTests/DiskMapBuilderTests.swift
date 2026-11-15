@@ -6,10 +6,10 @@ import Testing
 @Suite struct DiskMapBuilderTests {
     @Test func computesDirectorySizesAndCountsHardLinksOnce() async throws {
         let fixture = try Fixture()
-        let big = try fixture.file("root/a/big.bin", bytes: 120_000)
+        let big = try fixture.file("root/a/big.bin", bytes: 1_100_000)
         try fixture.directory("root/b")
         try FileManager.default.linkItem(at: big, to: fixture.url("root/b/hardlink.bin"))
-        let small = try fixture.file("root/b/small.bin", bytes: 8_000)
+        let small = try fixture.file("root/b/small.bin", bytes: 1_050_000)
         try fixture.file("outside/ignored.bin", bytes: 200_000)
         try fixture.symlink("root/a/link", to: fixture.url("outside"))
 
@@ -25,29 +25,37 @@ import Testing
         #expect(b.bytes == smallAlloc)
     }
 
-    @Test func foldsChildrenBeyondTop200IntoOtherNode() async throws {
+    @Test func foldsChildrenBelowMinSizeOrShareIntoOtherNode() async throws {
         let fixture = try Fixture()
-        let hero = try fixture.file("folder/hero.bin", bytes: 100_000)
+        let hero = try fixture.file("folder/hero.bin", bytes: 2_000_000)
         var total = try fixture.allocated(hero)
-        for index in 0..<214 {
-            let url = try fixture.file("folder/item-\(index).bin", bytes: 4_096)
+        for index in 0..<5 {
+            let url = try fixture.file("folder/small-\(index).bin", bytes: 500_000)
             total += try fixture.allocated(url)
         }
 
         let tree = try #require(await DiskMapBuilder().run(root: fixture.url("folder")))
         let other = try #require(tree.children.first { $0.foldedCount > 0 })
 
-        #expect(tree.children.count == 201)
-        #expect(other.name == "Other (15 items)")
-        #expect(other.foldedCount == 15)
+        #expect(tree.children.count == 2)
+        #expect(tree.children.first?.name == "hero.bin")
+        #expect(other.name == "Other (5 items)")
+        #expect(other.foldedCount == 5)
         #expect(other.url == nil)
         #expect(tree.bytes == total)
         #expect(tree.children.reduce(0) { $0 + $1.bytes } == total)
+
+        let parentURL = fixture.url("synthetic")
+        let huge = DiskNode(id: "huge", name: "huge", url: parentURL.appending(path: "huge"), bytes: 300_000_000, isDirectory: false, children: [], foldedCount: 0)
+        let lowShare = DiskNode(id: "low", name: "low", url: parentURL.appending(path: "low"), bytes: 1_200_000, isDirectory: false, children: [], foldedCount: 0)
+        let folded = DiskMapBuilder.fold([huge, lowShare], parentURL: parentURL)
+        #expect(folded.children.map(\.name) == ["huge", "Other (1 item)"])
+        #expect(folded.children.last?.bytes == 1_200_000)
     }
 
     @Test func handlesUnreadableDirectoryWithoutCorruptingTree() async throws {
         let fixture = try Fixture()
-        let visible = try fixture.file("root/visible/data.bin", bytes: 20_000)
+        let visible = try fixture.file("root/visible/data.bin", bytes: 1_050_000)
         let locked = try fixture.directory("root/locked")
         try fixture.file("root/locked/secret.bin", bytes: 10_000)
         chmod(locked.filePath, 0)

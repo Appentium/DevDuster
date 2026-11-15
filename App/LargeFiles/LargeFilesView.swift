@@ -1,35 +1,64 @@
-import AppKit
-import SwiftUI
 import SweepCore
+import SwiftUI
 
-public struct LargeFilesView: View {
-    @State private var model = LargeFilesModel()
+struct LargeFilesView: View {
+    @Bindable var model: LargeFilesModel
 
-    public init() {}
-
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 0) {
             filterBar
             Divider()
+            if let summary = model.cleanSession.summary {
+                CleanResultSummaryView(
+                    summary: summary,
+                    emptiedVolumeIDs: model.cleanSession.emptiedVolumeIDs,
+                    onEmptyTrash: { model.cleanSession.emptyTrash.request($0) },
+                    onDismiss: model.cleanSession.dismissSummary
+                )
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+            }
             tableContent
             Divider()
-            actionBar
+            CleanFooterBar(
+                selectedCount: model.selectedFiles.count,
+                selectedBytes: model.selectedBytes,
+                moveToTrash: $model.cleanSession.moveToTrash,
+                isDisabled: model.selectedFiles.isEmpty || model.scanning,
+                isCleaning: model.cleanSession.isCleaning,
+                onClean: { model.requestDelete(model.selectedFiles) }
+            )
+        }
+        .navigationTitle("Large Files")
+        .toolbar {
+            ToolbarItem {
+                Button("Reveal in Finder") {
+                    model.revealInFinder(model.selectedFiles)
+                }
+                .disabled(model.selectedFiles.isEmpty)
+            }
+            ToolbarItem {
+                if model.scanning {
+                    Button("Stop", action: model.cancelScan)
+                } else {
+                    Button {
+                        model.startScan()
+                    } label: {
+                        Label("Rescan", systemImage: "magnifyingglass")
+                    }
+                }
+            }
         }
         .onAppear { model.scanIfNeeded() }
         .onChange(of: model.minSize) { model.startScan() }
         .onChange(of: model.ageFilter) { model.startScan() }
         .onChange(of: model.volumeFilter) { model.startScan() }
-        .sheet(isPresented: $model.showDeleteConfirmation) {
-            deleteConfirmationSheet
-        }
-        .alert("Could Not Remove Selected Files", isPresented: Binding(
-            get: { model.errorMessage != nil },
-            set: { if !$0 { model.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(model.errorMessage ?? "")
-        }
+        .cleanFlowModals(
+            session: model.cleanSession,
+            selectedCount: model.pendingDeletion.count,
+            selectedBytes: model.pendingBytes,
+            onConfirmClean: { Task { await model.confirmDelete() } }
+        )
     }
 
     private var filterBar: some View {
@@ -60,9 +89,13 @@ public struct LargeFilesView: View {
             if model.scanning {
                 ProgressView()
                     .controlSize(.small)
-                Button("Stop") { model.cancelScan() }
+                Text("Scanned \(model.filesScanned.formatted()) • Found \(model.files.count)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             } else {
-                Button("Rescan") { model.startScan() }
+                Text("\(model.files.count) files")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal, 14)
@@ -82,9 +115,8 @@ public struct LargeFilesView: View {
             Table(model.sortedFiles, selection: $model.selection, sortOrder: $model.sortOrder) {
                 TableColumn("Name", value: \.name) { file in
                     HStack(spacing: 6) {
-                        Image(nsImage: NSWorkspace.shared.icon(forFile: file.path))
-                            .resizable()
-                            .frame(width: 16, height: 16)
+                        Image(systemName: "doc")
+                            .foregroundStyle(.secondary)
                         Text(file.name)
                             .lineLimit(1)
                     }
@@ -92,7 +124,7 @@ public struct LargeFilesView: View {
                 .width(min: 150, ideal: 220)
 
                 TableColumn("Size", value: \.bytes) { file in
-                    Text(Self.formatBytes(file.bytes))
+                    Text(ByteFormatter.string(file.bytes))
                         .monospacedDigit()
                         .frame(maxWidth: .infinity, alignment: .trailing)
                 }
@@ -120,126 +152,11 @@ public struct LargeFilesView: View {
                         model.revealInFinder(targets)
                     }
                     Divider()
-                    Button(model.moveToTrash ? "Move to Trash…" : "Delete Permanently…", role: .destructive) {
+                    Button(model.cleanSession.moveToTrash ? "Move to Trash…" : "Delete Permanently…", role: .destructive) {
                         model.requestDelete(targets)
                     }
                 }
             }
         }
-    }
-
-    private var actionBar: some View {
-        HStack(spacing: 12) {
-            statusSummary
-
-            Spacer()
-
-            if !model.moveToTrash {
-                Label("Permanent delete cannot be undone", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-
-            Toggle("Move to Trash", isOn: $model.moveToTrash)
-                .toggleStyle(.checkbox)
-
-            Button("Reveal in Finder") {
-                model.revealInFinder(model.selectedFiles)
-            }
-            .disabled(model.selectedFiles.isEmpty)
-
-            Button(model.moveToTrash ? "Move to Trash…" : "Delete Permanently…", role: .destructive) {
-                model.requestDelete(model.selectedFiles)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(model.moveToTrash ? .accentColor : .red)
-            .disabled(model.selectedFiles.isEmpty)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-    }
-
-    @ViewBuilder
-    private var statusSummary: some View {
-        if model.scanning {
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Scanned \(model.filesScanned.formatted()) entries • Found \(model.files.count)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                if !model.progressPath.isEmpty {
-                    Text(model.progressPath)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                        .frame(maxWidth: 320, alignment: .leading)
-                }
-            }
-        } else if !model.selectedFiles.isEmpty {
-            Text("\(model.selectedFiles.count) selected (\(Self.formatBytes(model.selectedBytes)))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        } else {
-            Text("\(model.files.count) files (\(Self.formatBytes(model.totalBytes)))")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .monospacedDigit()
-        }
-    }
-
-    private var deleteConfirmationSheet: some View {
-        let count = model.pendingDeletion.count
-        let label = count == 1
-            ? "\(model.pendingDeletion[0].name) (\(Self.formatBytes(model.pendingBytes)))"
-            : "\(count) files (\(Self.formatBytes(model.pendingBytes)))"
-
-        return VStack(alignment: .leading, spacing: 14) {
-            Text(model.moveToTrash ? "Move to Trash?" : "Delete Permanently?")
-                .font(.headline)
-
-            Text(label)
-                .fontWeight(.medium)
-
-            if count == 1, let file = model.pendingDeletion.first {
-                Text(file.path)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
-                    .truncationMode(.middle)
-            }
-
-            Text(RuleCatalog.userSelected.regenerate)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Toggle("Move to Trash", isOn: $model.moveToTrash)
-                .toggleStyle(.checkbox)
-
-            if !model.moveToTrash {
-                Label("Permanent deletion cannot be undone.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.red)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) {
-                    model.pendingDeletion = []
-                    model.showDeleteConfirmation = false
-                }
-                Button(model.moveToTrash ? "Move to Trash" : "Delete Permanently", role: .destructive) {
-                    Task { await model.confirmDelete() }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(model.moveToTrash ? .accentColor : .red)
-            }
-        }
-        .padding(20)
-        .frame(width: 420)
-    }
-
-    private static func formatBytes(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 }

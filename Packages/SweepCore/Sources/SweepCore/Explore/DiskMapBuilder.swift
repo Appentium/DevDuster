@@ -51,6 +51,7 @@ public enum DiskMapEvent: Sendable {
 
 public struct DiskMapBuilder: Sendable {
     public static let minShareRatio = 0.005
+    public static let minNodeBytes: Int64 = 1_000_000
     public static let maxChildren = 200
 
     private struct Frame {
@@ -167,7 +168,7 @@ public struct DiskMapBuilder: Sendable {
         return Task.isCancelled ? nil : rootNode
     }
 
-    private static func fold(_ children: [DiskNode], parentURL: URL) -> (children: [DiskNode], totalBytes: Int64) {
+    static func fold(_ children: [DiskNode], parentURL: URL) -> (children: [DiskNode], totalBytes: Int64) {
         let total = children.reduce(0) { $0 + $1.bytes }
         let sorted = children.sorted { $0.bytes > $1.bytes }
         var kept: [DiskNode] = []
@@ -176,7 +177,7 @@ public struct DiskMapBuilder: Sendable {
 
         for (index, child) in sorted.enumerated() {
             let meetsShare = total > 0 && Double(child.bytes) / Double(total) >= minShareRatio
-            if index < maxChildren || meetsShare {
+            if index < maxChildren && meetsShare && child.bytes >= minNodeBytes {
                 kept.append(child)
             } else {
                 otherBytes += child.bytes

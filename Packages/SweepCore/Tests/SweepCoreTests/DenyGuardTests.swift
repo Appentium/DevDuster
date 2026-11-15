@@ -132,12 +132,37 @@ import Testing
         #expect(throws: DenyGuard.Refusal.protected) { try denyGuard.check(url, rule: RuleCatalog.userSelected) }
     }
 
-    @Test func userSelectedAllowsPlainFileInHomeAndScannerNeverOffersIt() async throws {
+    @Test(arguments: [
+        "home/Documents",
+        "home/Desktop",
+        "home/Downloads",
+        "home/Library",
+        "home/Pictures",
+        "home/Movies",
+        "home/Music",
+        "home/Applications",
+        "home/Library/Application Support",
+        "home/Library/Preferences",
+        "home/Library/Caches",
+    ])
+    func userSelectedRefusesDirectChildrenOfHomeAndLibrary(path: String) throws {
         let fixture = try Fixture()
+        let folder = try fixture.directory(path)
+        let denyGuard = DenyGuard(catalog: fixture.catalog)
+        #expect(throws: DenyGuard.Refusal.protected) { try denyGuard.check(folder, rule: RuleCatalog.userSelected) }
+    }
+
+    @Test func userSelectedAllowsFilesInsideHomeFoldersAndScannerNeverOffersIt() async throws {
+        let fixture = try Fixture()
+        let document = try fixture.file("home/Documents/file.bin")
         let movie = try fixture.file("home/Downloads/movie.mkv")
+        let appData = try fixture.file("home/Library/Application Support/Demo/cache.bin")
         let denyGuard = DenyGuard(catalog: fixture.catalog)
 
+        #expect(try denyGuard.check(document, rule: RuleCatalog.userSelected).filePath == document.filePath)
         #expect(try denyGuard.check(movie, rule: RuleCatalog.userSelected).filePath == movie.filePath)
+        #expect(try denyGuard.check(appData, rule: RuleCatalog.userSelected).filePath == appData.filePath)
+        #expect(!fixture.catalog.rules.contains { $0.target == .userSelected })
         let report = await fixture.scan()
         #expect(report.items.allSatisfy { $0.rule.target != .userSelected })
     }

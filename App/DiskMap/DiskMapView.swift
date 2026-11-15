@@ -1,36 +1,40 @@
-import SwiftUI
 import SweepCore
+import SwiftUI
 
-public struct DiskMapView: View {
-    @State private var model = DiskMapModel()
+struct DiskMapView: View {
+    @Bindable var model: DiskMapModel
 
-    public init() {}
-
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 0) {
-            toolbar
+            toolbarBar
             Divider()
             breadcrumbBar
             Divider()
+            if let summary = model.cleanSession.summary {
+                CleanResultSummaryView(
+                    summary: summary,
+                    emptiedVolumeIDs: model.cleanSession.emptiedVolumeIDs,
+                    onEmptyTrash: { model.cleanSession.emptyTrash.request($0) },
+                    onDismiss: model.cleanSession.dismissSummary
+                )
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+            }
             content
             Divider()
             statusBar
         }
+        .navigationTitle("Disk Map")
         .onAppear { model.scanIfNeeded() }
-        .sheet(item: $model.pendingDelete) { node in
-            deleteConfirmationSheet(for: node)
-        }
-        .alert("Could Not Remove Item", isPresented: Binding(
-            get: { model.errorMessage != nil },
-            set: { if !$0 { model.errorMessage = nil } }
-        )) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text(model.errorMessage ?? "")
-        }
+        .cleanFlowModals(
+            session: model.cleanSession,
+            selectedCount: model.pendingDelete == nil ? 0 : 1,
+            selectedBytes: model.pendingDelete?.bytes ?? 0,
+            onConfirmClean: { Task { await model.confirmDelete() } }
+        )
     }
 
-    private var toolbar: some View {
+    private var toolbarBar: some View {
         HStack(spacing: 12) {
             Picker("Location", selection: Binding(
                 get: { model.selectedSource },
@@ -52,14 +56,15 @@ public struct DiskMapView: View {
 
             Spacer()
 
-            if !model.moveToTrash {
+            if !model.cleanSession.moveToTrash {
                 Label("Permanent delete cannot be undone", systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
             }
 
-            Toggle("Move to Trash", isOn: $model.moveToTrash)
+            Toggle("Move to Trash", isOn: $model.cleanSession.moveToTrash)
                 .toggleStyle(.checkbox)
+                .disabled(model.cleanSession.isCleaning)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
@@ -94,7 +99,7 @@ public struct DiskMapView: View {
             Spacer()
 
             if let current = model.currentNode {
-                Text(Self.formatBytes(current.bytes))
+                Text(ByteFormatter.string(current.bytes))
                     .font(.callout.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -117,7 +122,7 @@ public struct DiskMapView: View {
                             TreemapTileView(
                                 tile: tile,
                                 isHovered: model.hoveredNode?.id == tile.id,
-                                moveToTrash: model.moveToTrash,
+                                moveToTrash: model.cleanSession.moveToTrash,
                                 onHover: { hovering in
                                     if hovering {
                                         model.hoveredNode = tile.node
@@ -140,7 +145,7 @@ public struct DiskMapView: View {
                 ProgressView()
                 Text("Scanning \(model.selectedSource.label)…")
                     .font(.headline)
-                Text("\(Self.formatBytes(model.scannedBytes)) across \(model.scannedItems.formatted()) items")
+                Text("\(ByteFormatter.string(model.scannedBytes)) across \(model.scannedItems.formatted()) items")
                     .font(.subheadline.monospacedDigit())
                     .foregroundStyle(.secondary)
                 if !model.progressPath.isEmpty {
@@ -164,7 +169,7 @@ public struct DiskMapView: View {
             if let hovered = model.hoveredNode {
                 Text(hovered.name)
                     .fontWeight(.medium)
-                Text(Self.formatBytes(hovered.bytes))
+                Text(ByteFormatter.string(hovered.bytes))
                     .foregroundStyle(.secondary)
                     .monospacedDigit()
                 if let url = hovered.url {
@@ -186,56 +191,6 @@ public struct DiskMapView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
     }
-
-    private func deleteConfirmationSheet(for node: DiskNode) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(model.moveToTrash ? "Move to Trash?" : "Delete Permanently?")
-                .font(.headline)
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(node.name) (\(Self.formatBytes(node.bytes)))")
-                    .fontWeight(.medium)
-                if let url = node.url {
-                    Text(url.path)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .truncationMode(.middle)
-                }
-            }
-
-            Text(RuleCatalog.userSelected.regenerate)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Toggle("Move to Trash", isOn: $model.moveToTrash)
-                .toggleStyle(.checkbox)
-
-            if !model.moveToTrash {
-                Label("Permanent deletion cannot be undone.", systemImage: "exclamationmark.triangle.fill")
-                    .font(.callout)
-                    .foregroundStyle(.red)
-            }
-
-            HStack {
-                Spacer()
-                Button("Cancel", role: .cancel) {
-                    model.pendingDelete = nil
-                }
-                Button(model.moveToTrash ? "Move to Trash" : "Delete Permanently", role: .destructive) {
-                    Task { await model.confirmDelete() }
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(model.moveToTrash ? .accentColor : .red)
-            }
-        }
-        .padding(20)
-        .frame(width: 420)
-    }
-
-    static func formatBytes(_ bytes: Int64) -> String {
-        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
-    }
 }
 
 private struct TreemapTileView: View {
@@ -252,7 +207,7 @@ private struct TreemapTileView: View {
     ]
 
     var body: some View {
-        let sizeText = DiskMapView.formatBytes(tile.node.bytes)
+        let sizeText = ByteFormatter.string(tile.node.bytes)
         ZStack(alignment: .topLeading) {
             RoundedRectangle(cornerRadius: 4)
                 .fill(tileColor.opacity(isHovered ? 0.85 : 0.65))

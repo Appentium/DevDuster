@@ -10,7 +10,7 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 | `Tier` | `.safe`, `.review`, `.caution` |
 | `Rule` | `id`, `title`, `tier`, `target`, `regenerate` (show it next to the item), `pick`, `excluding`, `minAgeDays`, `processGuard`, `skipsRunningApps` |
 | `Rule.Target` | `.home([glob])` relative to home, `.project(directory:markers:)`, `.dockerPrune`, or `.userSelected` |
-| `RuleCatalog(home:)` | The built-in rules in precedence order. `home` defaults to the real home; tests pass a temp dir. `RuleCatalog.userSelected` is the rule for Disk Map / Large Files deletions |
+| `RuleCatalog(home:)` | The built-in scanner rules in precedence order. `home` defaults to the real home; tests pass a temp dir. `RuleCatalog.userSelected` is the standalone rule for Disk Map / Large Files deletions |
 | `ProjectArtifactMatcher(catalog:)` | `rule(forArtifact: url) -> Rule?`: the project rule for a folder, only when its marker file sits next to it |
 
 ## Scanning
@@ -37,7 +37,7 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 | `await cleaner.clean(items:mode:) -> [CleanResult]` | `mode` is `.trash` (default) or `.delete`. Pass `ScanItem`s from a scan, or `ScanItem.userSelected(url:bytes:)` for user-picked files |
 | `CleanResult` | `item`, `error: CleanError?` (`nil` = removed), `trashedURL` (where it went, for Restore) |
 | `CleanError` | `.refused(DenyGuard.Refusal)`, `.dockerNotRunning`, `.failed(message)` |
-| `DenyGuard(catalog:)` | `check(url, rule:) throws(Refusal) -> URL`. `Cleaner` already calls it on every item. For `.userSelected`, all protected checks still run plus `.app` bundle contents and `Library/Containers` / `Library/Group Containers`; `Refusal.reason` gives a display message |
+| `DenyGuard(catalog:)` | `check(url, rule:) throws(Refusal) -> URL`. `Cleaner` already calls it on every item. For `.userSelected`, all protected checks still run plus direct children of `home` and `~/Library`, `.app` bundle contents, and `Library/Containers` / `Library/Group Containers`; `Refusal.reason` gives a display message |
 | `CleanLog(url:)` / `CleanLog(home:)` | One line per removed item: `ISO-8601 time<TAB>mode<TAB>bytes<TAB>path` |
 
 The Docker item (`rule.target == .dockerPrune`) is never deleted as files: cleaning it runs
@@ -59,7 +59,7 @@ The Docker item (`rule.target == .dockerPrune`) is never deleted as files: clean
 | `DiskMapBuilder()` | Walks a folder once (`FTS_PHYSICAL`, `FTS_XDEV`), counting each hard link once |
 | `builder.build(root:) -> AsyncStream<DiskMapEvent>` | `.progress(path:bytesScanned:itemsScanned:)`, then `.finished(DiskNode)`. Cancelling the consuming task stops the walk |
 | `await builder.run(root:) -> DiskNode?` | Same tree walk, final root node only (`nil` if missing or cancelled) |
-| `DiskNode` | `id`, `name`, `url` (`nil` for folded `"Other (n items)"` nodes), `bytes` (allocated), `isDirectory`, `children` (at least 0.5% of parent or top 200 largest, rest folded), `foldedCount` |
+| `DiskNode` | `id`, `name`, `url` (`nil` for folded `"Other (n items)"` nodes), `bytes` (allocated), `isDirectory`, `children` (at least 0.5% of parent and `minNodeBytes` = 1 MB, capped at 200 largest, rest folded), `foldedCount` |
 | `LargeFileFinder(home:volumes:)` | Walks `home` + writable local volumes (or `options.roots`), skipping `.Trashes`, `.Spotlight-V100`, `.fseventsd`, `.DocumentRevisions-V100`, `~/Library/Mobile Documents` |
 | `finder.scan(_ options) -> AsyncStream<LargeFileEvent>` | `.progress(path:filesScanned:)`, `.file(LargeFile)`, then `.finished([LargeFile])` sorted largest first |
 | `await finder.run(_ options) -> [LargeFile]` | Same search, sorted array only |

@@ -198,7 +198,6 @@ public struct RuleCatalog: Sendable {
             target: .project(directory: "target", markers: ["Cargo.toml"]),
             regenerate: "cargo build recreates it."
         ),
-        userSelected,
     ]
 
     private static let gradleDaemon = "GradleDaemon"

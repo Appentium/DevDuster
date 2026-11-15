@@ -29,6 +29,7 @@ public struct DenyGuard: Sendable {
     ]
 
     private let home: URL
+    private let homeLibrary: URL
     private let protectedPaths: [URL]
     private let userSelectedProtectedPaths: [URL]
     private let matcher: ProjectArtifactMatcher
@@ -36,6 +37,7 @@ public struct DenyGuard: Sendable {
     public init(catalog: RuleCatalog) {
         let realHome = FilePath.real(catalog.home) ?? catalog.home
         home = realHome
+        homeLibrary = realHome.appending(path: "Library")
         protectedPaths = Self.protectedSystemPaths.map { URL(filePath: $0) } + Self.protectedHomePaths.map { realHome.appending(path: $0) }
         userSelectedProtectedPaths = Self.userSelectedProtectedHomePaths.map { realHome.appending(path: $0) }
         matcher = ProjectArtifactMatcher(catalog: catalog)
@@ -58,9 +60,11 @@ public struct DenyGuard: Sendable {
         let isProtected = protectedPaths.contains { url.isSameOrInside($0) || $0.isInside(url) }
         if isProtected || url.realComponents.contains(where: { $0.hasSuffix(".photoslibrary") }) { throw .protected }
         if rule.target == .userSelected {
+            let parentPath = url.deletingLastPathComponent().filePath
+            let isTopLevelHomeOrLibrary = parentPath == home.filePath || parentPath == homeLibrary.filePath
             let isContainer = userSelectedProtectedPaths.contains { url.isSameOrInside($0) || $0.isInside(url) }
             let insideApp = url.deletingLastPathComponent().realComponents.contains { $0.lowercased().hasSuffix(".app") }
-            if isContainer || insideApp { throw .protected }
+            if isTopLevelHomeOrLibrary || isContainer || insideApp { throw .protected }
         }
     }
 

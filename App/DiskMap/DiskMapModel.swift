@@ -46,9 +46,8 @@ import SweepCore
     var progressPath = ""
     var scannedBytes: Int64 = 0
     var scannedItems = 0
-    var moveToTrash = true
     var pendingDelete: DiskNode?
-    var errorMessage: String?
+    var cleanSession = CleanSessionModel()
 
     private var scanTask: Task<Void, Never>?
 
@@ -95,6 +94,7 @@ import SweepCore
 
     func startScan() {
         scanTask?.cancel()
+        cleanSession.dismissSummary()
         volumes = volumeService.volumes()
         rootNode = nil
         trail = []
@@ -102,7 +102,6 @@ import SweepCore
         progressPath = ""
         scannedBytes = 0
         scannedItems = 0
-        errorMessage = nil
         scanning = true
 
         let targetURL = selectedSource.url
@@ -150,12 +149,13 @@ import SweepCore
 
     func revealInFinder(_ node: DiskNode) {
         guard let url = node.url else { return }
-        NSWorkspace.shared.activateFileViewerSelecting([url])
+        FinderActions.reveal(url)
     }
 
     func requestDelete(_ node: DiskNode) {
         guard node.url != nil else { return }
         pendingDelete = node
+        cleanSession.requestConfirmation()
     }
 
     func confirmDelete() async {
@@ -163,21 +163,13 @@ import SweepCore
         pendingDelete = nil
 
         let item = ScanItem.userSelected(url: url, bytes: node.bytes)
-        let mode: CleanMode = moveToTrash ? .trash : .delete
-        let results = await Cleaner(catalog: catalog).clean(items: [item], mode: mode)
-        guard let result = results.first else { return }
+        let cleanedIDs = await cleanSession.clean(items: [item], catalog: catalog)
+        guard !cleanedIDs.isEmpty, let rootNode else { return }
 
-        if let error = result.error {
-            errorMessage = Self.describe(error, path: url.path)
-            return
-        }
-
-        if let rootNode {
-            let updated = rootNode.removing(id: node.id)
-            self.rootNode = updated
-            trail = Self.reconcile(trail: trail, inside: updated)
-            if hoveredNode?.id == node.id { hoveredNode = nil }
-        }
+        let updated = rootNode.removing(id: node.id)
+        self.rootNode = updated
+        trail = Self.reconcile(trail: trail, inside: updated)
+        if hoveredNode?.id == node.id { hoveredNode = nil }
     }
 
     private static func reconcile(trail: [DiskNode], inside root: DiskNode) -> [DiskNode] {
@@ -187,13 +179,5 @@ import SweepCore
             reconciled.append(match)
         }
         return reconciled
-    }
-
-    private static func describe(_ error: CleanError, path: String) -> String {
-        switch error {
-        case .refused(let refusal): "\(refusal.reason) (\(path))"
-        case .dockerNotRunning: "Docker is not running."
-        case .failed(let message): message
-        }
     }
 }
