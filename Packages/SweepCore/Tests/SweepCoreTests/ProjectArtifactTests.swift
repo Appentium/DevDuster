@@ -102,3 +102,26 @@ import Testing
         #expect(report.paths(for: "project.flutter-build") == [fixture.url("storage/Projects/app/build").filePath])
     }
 }
+
+@Suite struct ToolchainSkipTests {
+    @Test func toolchainInstallsAreNeverSearched() async throws {
+        let fixture = try Fixture()
+        let sdk = "storage/flutter/3.35.3/flutter"
+        try fixture.file("\(sdk)/bin/flutter", ageDays: 60)
+        try fixture.file("\(sdk)/packages/flutter_tools/pubspec.yaml", ageDays: 60)
+        try fixture.file("\(sdk)/packages/flutter_tools/build/snapshot.bin", ageDays: 60)
+        try fixture.file("\(sdk)/packages/flutter_tools/gradle/build.gradle.kts", ageDays: 60)
+        try fixture.file("\(sdk)/packages/flutter_tools/gradle/.gradle/8.0/file.bin", ageDays: 60)
+        try fixture.file("storage/Android/sdk/platform-tools/adb", ageDays: 60)
+        try fixture.file("storage/Android/sdk/sources/android-35/build.gradle", ageDays: 60)
+        try fixture.file("storage/Android/sdk/sources/android-35/build/out.bin", ageDays: 60)
+        try fixture.file("storage/Tools/Editor.app/Contents/Resources/app/package.json", ageDays: 60)
+        try fixture.file("storage/Tools/Editor.app/Contents/Resources/app/node_modules/x.js", ageDays: 60)
+        try fixture.file("storage/Projects/app/pubspec.yaml", ageDays: 60)
+        try fixture.file("storage/Projects/app/build/app.so", ageDays: 60)
+
+        let report = await fixture.scan()
+        #expect(report.items.map(\.url.filePath) == [fixture.url("storage/Projects/app/build").filePath])
+        #expect(await fixture.scan(ScanOptions(scope: [fixture.url(sdk)])).items.isEmpty)
+    }
+}

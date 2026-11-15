@@ -55,12 +55,13 @@ final class Fixture {
         Int64(try url.resourceValues(forKeys: [.totalFileAllocatedSizeKey]).totalFileAllocatedSize ?? 0)
     }
 
-    func scanner(running: Set<String> = []) -> SweepScanner {
-        SweepScanner(catalog: catalog, volumes: VolumeService(home: home), processes: ProcessProbe { running.contains($0) })
+    func scanner(running: Set<String> = [], apps: [RunningApp] = []) -> SweepScanner {
+        let processes = ProcessProbe(isRunning: { running.contains($0) }, runningApps: { apps })
+        return SweepScanner(catalog: catalog, volumes: VolumeService(home: home), processes: processes)
     }
 
-    func scan(_ options: ScanOptions? = nil, running: Set<String> = []) async -> ScanReport {
-        await scanner(running: running).run(options ?? ScanOptions(scope: [root]))
+    func scan(_ options: ScanOptions? = nil, running: Set<String> = [], apps: [RunningApp] = []) async -> ScanReport {
+        await scanner(running: running, apps: apps).run(options ?? ScanOptions(scope: [root]))
     }
 
     func rule(_ id: String) throws -> Rule {

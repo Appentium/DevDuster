@@ -47,13 +47,17 @@ public struct SweepScanner: Sendable {
         var seen: Set<String> = []
         candidates = candidates.filter { seen.insert($0.url.filePath).inserted }
 
+        let appGuard = RunningAppGuard(home: catalog.home, apps: processes.runningApps())
         let sizes = SizeCalculator()
-        var items = await candidates.concurrentMap { candidate in
+        let measured = await candidates.concurrentMap { candidate in
             emit(.progress(.measuring, path: candidate.url.filePath))
             let item = ScanItem(rule: candidate.rule, url: candidate.url, bytes: sizes.allocatedSize(of: candidate.url))
-            if item.bytes > 0 { emit(.item(item)) }
-            return item
-        }.filter { $0.bytes > 0 }
+            let owner = appGuard.owner(of: item)
+            if item.bytes > 0, owner == nil { emit(.item(item)) }
+            return (item: item, owner: owner)
+        }.filter { $0.item.bytes > 0 }
+        var items = measured.filter { $0.owner == nil }.map(\.item)
+        let skippedItems = measured.compactMap { entry in entry.owner.map { SkippedItem(item: entry.item, runningApp: $0.name) } }
 
         if scope == nil, let dockerItem = dockerItem(tiers: options.tiers) {
             emit(.item(dockerItem))
@@ -65,7 +69,7 @@ public struct SweepScanner: Sendable {
         let skipped = catalog.rules.filter { options.tiers.contains($0.tier) }.compactMap { rule in
             rule.processGuard.first(where: running.contains).map { SkippedRule(rule: rule, runningProcess: $0) }
         }
-        return ScanReport(items: items, skipped: skipped)
+        return ScanReport(items: items, skipped: skipped, skippedItems: skippedItems.sorted { $0.item.bytes > $1.item.bytes })
     }
 
     private func homeCandidates(excluded: [URL]) -> (offered: [ScanItem], claimed: [URL]) {

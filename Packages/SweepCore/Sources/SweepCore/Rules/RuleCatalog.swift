@@ -72,7 +72,8 @@ public struct RuleCatalog: Sendable {
                 "Library/Application Support/*/Code Cache",
                 "Library/Application Support/*/GPUCache",
             ]),
-            regenerate: "Each app rebuilds its web cache on launch."
+            regenerate: "Each app rebuilds its web cache on launch.",
+            skipsRunningApps: true
         ),
         Rule(
             id: "android-studio.old", title: "Old Android Studio caches and logs", tier: .review,
@@ -84,12 +85,14 @@ public struct RuleCatalog: Sendable {
             id: "logs", title: "User logs", tier: .safe,
             target: .home(["Library/Logs/*"]),
             regenerate: "Apps write new logs as they run.",
-            excluding: ["Library/Logs/Sweep"]
+            excluding: ["Library/Logs/Sweep"],
+            skipsRunningApps: true
         ),
         Rule(
             id: "caches", title: "User caches", tier: .safe,
             target: .home(["Library/Caches/*"]),
-            regenerate: "Apps rebuild their caches as they run."
+            regenerate: "Apps rebuild their caches as they run.",
+            skipsRunningApps: true
         ),
         Rule(
             id: "gradle.caches", title: "Old Gradle caches", tier: .review,
@@ -113,8 +116,8 @@ public struct RuleCatalog: Sendable {
         ),
         Rule(
             id: "pub.cache", title: "Dart pub cache", tier: .review,
-            target: .home([".pub-cache/*"]),
-            regenerate: "flutter pub get downloads packages again; global tools need re-activating."
+            target: .home([".pub-cache/hosted", ".pub-cache/git", ".pub-cache/_temp"]),
+            regenerate: "flutter pub get downloads packages again; globally activated tools are kept."
         ),
         Rule(
             id: "docker.prune", title: "Docker unused data (estimate)", tier: .review,

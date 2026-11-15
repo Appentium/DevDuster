@@ -88,6 +88,7 @@ struct ProjectWalker: Sendable {
         var tree = Tree()
         var hasMarker = false
         var subtrees: [URL] = []
+        if Self.isToolchain(root) { return (root, tree, hasMarker, subtrees) }
         for child in FilePath.children(of: root) {
             guard let info = FilePath.status(child) else { continue }
             guard FilePath.isDirectory(info) else {
@@ -166,7 +167,15 @@ struct ProjectWalker: Sendable {
         if excluded.contains(directory.filePath) { return .skip }
         if let rule = matcher.rule(forArtifact: directory) { return .artifact(rule) }
         // Hidden folders hold tool state (.git, .gradle homes, .pub-cache, .Trashes, .claude/worktrees), not projects.
-        return directory.lastPathComponent.hasPrefix(".") ? .skip : .enter
+        if directory.lastPathComponent.hasPrefix(".") { return .skip }
+        return Self.isToolchain(directory) ? .skip : .enter
+    }
+
+    private static func isToolchain(_ directory: URL) -> Bool {
+        if directory.pathExtension == "app" { return true }
+        let exists = { (path: String) in FilePath.status(directory.appending(path: path)) != nil }
+        let isFlutterSDK = exists("bin/flutter") && exists("packages/flutter_tools")
+        return isFlutterSDK || exists("platform-tools") || exists("build-tools")
     }
 
     private static func date(_ seconds: time_t) -> Date {

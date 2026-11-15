@@ -48,6 +48,7 @@ struct ScanCommand: AsyncParsableCommand {
             lines += group.items.map { "  \(size($0.bytes).padding(toLength: 10, withPad: " ", startingAt: 0)) \($0.url.path(percentEncoded: false))" }
         }
         lines += report.skipped.map { "Skipped \($0.rule.title): \($0.runningProcess) is running" }
+        lines += report.skippedItems.map { "Skipped \(size($0.item.bytes)) \($0.item.url.path(percentEncoded: false)): quit \($0.runningApp) to clean it" }
         lines.append("Total: \(size(report.totalBytes)) in \(report.items.count) item(s)")
         return lines.joined(separator: "\n")
     }
@@ -64,7 +65,8 @@ struct ScanCommand: AsyncParsableCommand {
                     items: group.items.map { JSONReport.Item(path: $0.url.path(percentEncoded: false), bytes: $0.bytes) }
                 )
             },
-            skipped: report.skipped.map { $0.rule.id }
+            skipped: report.skipped.map { $0.rule.id },
+            skippedItems: report.skippedItems.map { JSONReport.SkippedItem(path: $0.item.url.path(percentEncoded: false), bytes: $0.item.bytes, runningApp: $0.runningApp) }
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
@@ -90,7 +92,14 @@ private struct JSONReport: Encodable {
         let items: [Item]
     }
 
+    struct SkippedItem: Encodable {
+        let path: String
+        let bytes: Int64
+        let runningApp: String
+    }
+
     let totalBytes: Int64
     let rules: [Group]
     let skipped: [String]
+    let skippedItems: [SkippedItem]
 }

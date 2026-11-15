@@ -8,7 +8,7 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 | Type | What it is |
 |---|---|
 | `Tier` | `.safe`, `.review`, `.caution` |
-| `Rule` | `id`, `title`, `tier`, `target`, `regenerate` (show it next to the item), `pick`, `excluding`, `minAgeDays`, `processGuard` |
+| `Rule` | `id`, `title`, `tier`, `target`, `regenerate` (show it next to the item), `pick`, `excluding`, `minAgeDays`, `processGuard`, `skipsRunningApps` |
 | `Rule.Target` | `.home([glob])` relative to home, `.project(directory:markers:)`, or `.dockerPrune` |
 | `RuleCatalog(home:)` | The built-in rules in precedence order. `home` defaults to the real home; tests pass a temp dir |
 | `ProjectArtifactMatcher(catalog:)` | `rule(forArtifact: url) -> Rule?`: the project rule for a folder, only when its marker file sits next to it |
@@ -18,11 +18,13 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 | Call | Returns |
 |---|---|
 | `SweepScanner(catalog:volumes:processes:)` | `volumes` and `processes` default to the real machine |
+| `ProcessProbe(isRunning:runningApps:)` | `.system` reads `ps` and `NSWorkspace`; tests inject fixed answers. `RunningApp` is `bundleIdentifier` + `name` |
 | `scanner.scan(_ options) -> AsyncStream<ScanEvent>` | `.progress(ScanPhase, path:)`, `.item(ScanItem)` as each is measured, then `.finished(ScanReport)`. Cancelling the consuming task stops the scan |
 | `await scanner.run(_ options) -> ScanReport` | Same scan, final report only |
 | `ScanOptions(staleDays: 14, excludedPaths: [], tiers: all, scope: nil)` | `scope` limits the scan to items inside those folders; `nil` means home plus every writable local volume. `isStale(date)` applies `staleDays` |
 | `ScanItem` | `rule`, `url` (real path), `bytes` (allocated, hard links counted once per scan), `id` |
-| `ScanReport` | `items` (catalog order, then largest first), `skipped: [SkippedRule]` (rule + the running process that blocked it), `totalBytes` |
+| `ScanReport` | `items` (catalog order, then largest first), `skipped: [SkippedRule]` (rule + the running process that blocked it), `skippedItems: [SkippedItem]`, `totalBytes` (offered items only) |
+| `SkippedItem` | `item` (measured) + `runningApp`, for an item whose app is open: show "Quit \(runningApp) to clean \(bytes)". Applies to rules with `skipsRunningApps` (User caches, User logs, Electron app caches) |
 | `FlutterProjectScanner(catalog:volumes:)` | `await scan(_ options) -> [FlutterProject]`: every `pubspec.yaml` with `sdk: flutter`, stale or not |
 | `FlutterProject` | `url`, `lastActivity`, `folders: [ScanItem]` (present `.dart_tool`, `build`, `ios/Pods`, `ios/.symlinks`, `android/.gradle`), `totalBytes`. Use `options.isStale(project.lastActivity)` for "Select stale" |
 | `SizeCalculator()` | `allocatedSize(of: url) -> Int64`; one instance dedupes hard links across all its calls |

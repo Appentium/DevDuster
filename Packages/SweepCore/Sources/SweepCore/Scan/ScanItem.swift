@@ -13,9 +13,15 @@ public struct SkippedRule: Sendable, Hashable {
     public let runningProcess: String
 }
 
+public struct SkippedItem: Sendable, Hashable {
+    public let item: ScanItem
+    public let runningApp: String
+}
+
 public struct ScanReport: Sendable {
     public let items: [ScanItem]
     public let skipped: [SkippedRule]
+    public let skippedItems: [SkippedItem]
 
     public var totalBytes: Int64 { items.reduce(0) { $0 + $1.bytes } }
 }

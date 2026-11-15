@@ -20,6 +20,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
     public let excluding: [String]
     public let minAgeDays: Int?
     public let processGuard: [String]
+    public let skipsRunningApps: Bool
 
     public init(
         id: String,
@@ -30,7 +31,8 @@ public struct Rule: Sendable, Hashable, Identifiable {
         pick: Pick = .all,
         excluding: [String] = [],
         minAgeDays: Int? = nil,
-        processGuard: [String] = []
+        processGuard: [String] = [],
+        skipsRunningApps: Bool = false
     ) {
         self.id = id
         self.title = title
@@ -41,5 +43,6 @@ public struct Rule: Sendable, Hashable, Identifiable {
         self.excluding = excluding
         self.minAgeDays = minAgeDays
         self.processGuard = processGuard
+        self.skipsRunningApps = skipsRunningApps
     }
 }

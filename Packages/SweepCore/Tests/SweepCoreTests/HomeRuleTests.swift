@@ -103,6 +103,17 @@ import Testing
         #expect(caution.paths(for: "xcode.archives") == [fixture.url("home/Library/Developer/Xcode/Archives/2026-01-01").filePath])
     }
 
+    @Test func pubCacheKeepsGlobalTools() async throws {
+        let fixture = try Fixture()
+        for folder in ["bin", "global_packages", "active_roots", "hosted", "git", "_temp"] {
+            try fixture.file("storage/.pub-cache/\(folder)/data.bin")
+        }
+        try fixture.symlink("home/.pub-cache", to: fixture.url("storage/.pub-cache"))
+
+        let offered = await fixture.scan().paths(for: "pub.cache").map { URL(filePath: $0).lastPathComponent }
+        #expect(Set(offered) == ["hosted", "git", "_temp"])
+    }
+
     @Test func streamReportsItemsThenFinishes() async throws {
         let fixture = try Fixture()
         try fixture.file("home/Library/Logs/app.log")
