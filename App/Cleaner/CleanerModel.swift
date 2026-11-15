@@ -22,6 +22,7 @@ final class CleanerModel {
     }
 
     private let catalog = RuleCatalog()
+    private let settings = SweepSettings()
     private var scanTask: Task<Void, Never>?
     private var manuallyDeselectedIDs: Set<ScanItem.ID> = []
 
@@ -59,8 +60,9 @@ final class CleanerModel {
         isScanning = true
 
         let catalog = self.catalog
+        let options = settings.scanOptions()
         scanTask = Task { [weak self] in
-            for await event in SweepScanner(catalog: catalog).scan(ScanOptions()) {
+            for await event in SweepScanner(catalog: catalog).scan(options) {
                 guard let self, !Task.isCancelled else { break }
                 self.handle(event)
             }

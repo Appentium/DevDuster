@@ -60,7 +60,7 @@ final class CleanSessionModel {
                     CleanIssue(
                         id: result.item.id,
                         path: result.item.url.path(percentEncoded: false),
-                        reason: Self.reason(for: error)
+                        reason: error.message
                     )
                 )
                 continue
@@ -91,16 +91,5 @@ final class CleanSessionModel {
         await Task.detached(priority: .userInitiated) {
             service.volumes()
         }.value
-    }
-
-    private static func reason(for error: CleanError) -> String {
-        switch error {
-        case .dockerNotRunning:
-            return "Docker is not running."
-        case .failed(let message):
-            return message
-        case .refused(let refusal):
-            return refusal.reason
-        }
     }
 }

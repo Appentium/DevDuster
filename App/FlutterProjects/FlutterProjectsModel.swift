@@ -23,7 +23,7 @@ final class FlutterProjectsModel {
     }
 
     private let catalog = RuleCatalog()
-    private let defaultOptions = ScanOptions()
+    private let settings = SweepSettings()
     private var scanTask: Task<Void, Never>?
     private var rawProjects: [ProjectEntry] = []
 
@@ -61,7 +61,7 @@ final class FlutterProjectsModel {
     }
 
     func isStale(_ project: ProjectEntry) -> Bool {
-        defaultOptions.isStale(project.lastActivity)
+        settings.scanOptions().isStale(project.lastActivity)
     }
 
     func startScan() {
@@ -73,7 +73,7 @@ final class FlutterProjectsModel {
         isScanning = true
 
         let catalog = self.catalog
-        let options = self.defaultOptions
+        let options = settings.scanOptions()
         scanTask = Task { [weak self] in
             let scanned = await FlutterProjectScanner(catalog: catalog).scan(options)
             guard let self, !Task.isCancelled else { return }

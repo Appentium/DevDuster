@@ -2,7 +2,7 @@ import SwiftUI
 
 struct CleanConfirmationSheet: View {
     let itemCount: Int
-    let totalBytes: Int64
+    let totalBytes: Int64?
     let moveToTrash: Bool
     let onConfirm: () -> Void
     let onCancel: () -> Void
@@ -16,9 +16,11 @@ struct CleanConfirmationSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(moveToTrash ? "Move \(itemCount) items to Trash?" : "Permanently delete \(itemCount) items?")
                         .font(.headline)
-                    Text("Total size: \(ByteFormatter.string(totalBytes))")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    if let totalBytes {
+                        Text("Total size: \(ByteFormatter.string(totalBytes))")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
 

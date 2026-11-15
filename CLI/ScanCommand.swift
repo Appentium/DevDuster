@@ -18,45 +18,20 @@ struct ScanCommand: AsyncParsableCommand {
     var path: [URL] = []
 
     func run() async throws {
-        let options = ScanOptions(tiers: tier.isEmpty ? Set(Tier.allCases) : Set(tier), scope: path.isEmpty ? nil : path)
+        let options = SweepSettings().scanOptions(tiers: tier.isEmpty ? Set(Tier.allCases) : Set(tier), scope: path.isEmpty ? nil : path)
         let report = await SweepScanner(catalog: RuleCatalog()).run(options)
-        print(json ? try jsonText(report) : text(report))
+        print(json ? try jsonText(report) : report.text)
     }
 
-    private static func tier(_ value: String) throws -> Tier {
+    static func tier(_ value: String) throws -> Tier {
         guard let tier = Tier(rawValue: value) else { throw ValidationError("Unknown tier '\(value)'; use safe, review or caution.") }
         return tier
-    }
-
-    private func groups(_ report: ScanReport) -> [(rule: Rule, items: [ScanItem])] {
-        var groups: [(rule: Rule, items: [ScanItem])] = []
-        for item in report.items {
-            if groups.last?.rule == item.rule {
-                groups[groups.count - 1].items.append(item)
-            } else {
-                groups.append((item.rule, [item]))
-            }
-        }
-        return groups
-    }
-
-    private func text(_ report: ScanReport) -> String {
-        var lines: [String] = []
-        for group in groups(report) {
-            let total = group.items.reduce(0) { $0 + $1.bytes }
-            lines.append("[\(group.rule.tier.rawValue)] \(group.rule.title): \(total.fileSize) in \(group.items.count) item(s)")
-            lines += group.items.map { "  \($0.bytes.fileSize.padding(toLength: 10, withPad: " ", startingAt: 0)) \($0.url.path(percentEncoded: false))" }
-        }
-        lines += report.skipped.map { "Skipped \($0.rule.title): \($0.runningProcess) is running" }
-        lines += report.skippedItems.map { "Skipped \($0.item.bytes.fileSize) \($0.item.url.path(percentEncoded: false)): quit \($0.runningApp) to clean it" }
-        lines.append("Total: \(report.totalBytes.fileSize) in \(report.items.count) item(s)")
-        return lines.joined(separator: "\n")
     }
 
     private func jsonText(_ report: ScanReport) throws -> String {
         let output = JSONReport(
             totalBytes: report.totalBytes,
-            rules: groups(report).map { group in
+            rules: report.groups.map { group in
                 JSONReport.Group(
                     id: group.rule.id,
                     title: group.rule.title,

@@ -115,13 +115,7 @@ struct SystemCommand: AsyncParsableCommand {
             let reported = trashes.map(\.name)
             let selected = try cleaning.select(volumes.isEmpty ? reported : volumes, from: reported)
             guard try cleaning.confirmed("Permanently empty the root trash on \(selected.count) volume(s)?", targets: selected) else { return }
-            var combined = PrivilegedCleanResult()
-            for volume in selected {
-                let result = try await client.emptyRootTrash(volume)
-                combined.removed += result.removed
-                combined.failures += result.failures
-            }
-            try cleaning.report(combined)
+            try cleaning.report(try await client.emptyRootTrashes(selected))
         }
     }
 }

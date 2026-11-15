@@ -2,13 +2,15 @@ import AppKit
 import SwiftUI
 
 struct RootView: View {
-    @State private var selection: SidebarSection? = .dashboard
+    @Binding var selection: SidebarSection?
+    let cleanerModel: CleanerModel
+    let volumeMonitor: VolumeMonitorModel
     @State private var fdaModel = FullDiskAccessModel()
     @State private var dashboardModel = DashboardModel()
-    @State private var cleanerModel = CleanerModel()
     @State private var flutterModel = FlutterProjectsModel()
     @State private var diskMapModel = DiskMapModel()
     @State private var largeFilesModel = LargeFilesModel()
+    @State private var systemModel = SystemModel()
 
     var body: some View {
         NavigationSplitView {
@@ -22,6 +24,7 @@ struct RootView: View {
         }
         .task {
             fdaModel.check()
+            volumeMonitor.start()
         }
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             fdaModel.check()
@@ -47,6 +50,8 @@ struct RootView: View {
             DiskMapView(model: diskMapModel)
         case .largeFiles:
             LargeFilesView(model: largeFilesModel)
+        case .system:
+            SystemView(model: systemModel)
         case nil:
             ContentUnavailableView("Select a Section", systemImage: "sidebar.left")
         }

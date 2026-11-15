@@ -49,6 +49,16 @@ public struct HelperClient: Sendable {
         return try await call { $0.emptyRootTrash(volumeName, reply: $1) }
     }
 
+    public func emptyRootTrashes(_ volumeNames: [String]) async throws(HelperError) -> PrivilegedCleanResult {
+        var combined = PrivilegedCleanResult()
+        for volumeName in volumeNames {
+            let result = try await emptyRootTrash(volumeName)
+            combined.removed += result.removed
+            combined.failures += result.failures
+        }
+        return combined
+    }
+
     private func call<Value: Decodable & Sendable>(_ send: @escaping @Sendable (SweepHelperProtocol, @escaping Reply) -> Void) async throws(HelperError) -> Value {
         try await request { proxy, finish in
             send(proxy) { data, message in

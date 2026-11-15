@@ -11,6 +11,16 @@ public enum CleanError: Error, Sendable, Equatable {
     case failed(String)
 }
 
+extension CleanError {
+    public var message: String {
+        switch self {
+        case .dockerNotRunning: "Docker is not running."
+        case .failed(let message): message
+        case .refused(let refusal): refusal.reason
+        }
+    }
+}
+
 public struct CleanResult: Sendable {
     public let item: ScanItem
     public let error: CleanError?

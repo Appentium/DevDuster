@@ -6,6 +6,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case flutterProjects = "Flutter Projects"
     case diskMap = "Disk Map"
     case largeFiles = "Large Files"
+    case system = "System"
 
     var id: Self { self }
 
@@ -16,6 +17,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
         case .flutterProjects: "wrench.and.screwdriver"
         case .diskMap: "square.grid.3x3.square"
         case .largeFiles: "doc.badge.ellipsis"
+        case .system: "gearshape.2"
         }
     }
 }
