@@ -19,8 +19,8 @@ struct DashboardView: View {
                         ForEach(model.entries) { entry in
                             VolumeCard(
                                 entry: entry,
-                                isEmptying: model.isEmptying,
-                                onEmptyTrash: { model.requestEmptyTrash(for: entry.volume) }
+                                isEmptying: model.emptyTrash.isEmptying,
+                                onEmptyTrash: { model.emptyTrash.request(entry.volume) }
                             )
                         }
                     }
@@ -47,11 +47,9 @@ struct DashboardView: View {
         .task {
             await model.refresh()
         }
-        .emptyTrashAlerts(
-            volume: $model.volumeToEmpty,
-            error: $model.emptyError,
-            onConfirm: { Task { await model.confirmEmptyTrash() } }
-        )
+        .emptyTrashAlerts(model: model.emptyTrash) { _ in
+            await model.refresh()
+        }
     }
 }
 

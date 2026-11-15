@@ -81,7 +81,7 @@ struct CleanerView: View {
                         CleanResultSummaryView(
                             summary: summary,
                             emptiedVolumeIDs: model.cleanSession.emptiedVolumeIDs,
-                            onEmptyTrash: { model.cleanSession.requestEmptyTrash(for: $0) },
+                            onEmptyTrash: { model.cleanSession.emptyTrash.request($0) },
                             onDismiss: model.cleanSession.dismissSummary
                         )
                         .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))

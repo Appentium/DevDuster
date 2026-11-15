@@ -15,9 +15,7 @@ final class DashboardModel {
 
     private(set) var entries: [VolumeEntry] = []
     private(set) var isLoading = false
-    private(set) var isEmptying = false
-    var volumeToEmpty: Volume?
-    var emptyError: String?
+    var emptyTrash = EmptyTrashModel()
 
     func refresh() async {
         isLoading = true
@@ -28,24 +26,5 @@ final class DashboardModel {
             }
         }.value
         isLoading = false
-    }
-
-    func requestEmptyTrash(for volume: Volume) {
-        volumeToEmpty = volume
-    }
-
-    func confirmEmptyTrash() async {
-        guard let volume = volumeToEmpty else { return }
-        volumeToEmpty = nil
-        isEmptying = true
-        do {
-            try await Task.detached(priority: .userInitiated) {
-                try VolumeService().emptyTrash(of: volume)
-            }.value
-        } catch {
-            emptyError = error.localizedDescription
-        }
-        isEmptying = false
-        await refresh()
     }
 }

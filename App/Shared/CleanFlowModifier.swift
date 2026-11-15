@@ -18,11 +18,9 @@ struct CleanFlowModifier: ViewModifier {
                     onCancel: { session.isConfirming = false }
                 )
             }
-            .emptyTrashAlerts(
-                volume: $session.volumeToEmpty,
-                error: $session.emptyTrashError,
-                onConfirm: { Task { await session.confirmEmptyTrash() } }
-            )
+            .emptyTrashAlerts(model: session.emptyTrash) { volume in
+                session.markEmptied(volume)
+            }
     }
 }
 

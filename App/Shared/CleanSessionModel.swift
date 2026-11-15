@@ -23,9 +23,8 @@ final class CleanSessionModel {
     var isConfirming = false
     private(set) var isCleaning = false
     private(set) var summary: CleanSummary?
-    var volumeToEmpty: Volume?
     private(set) var emptiedVolumeIDs: Set<URL> = []
-    var emptyTrashError: String?
+    var emptyTrash = EmptyTrashModel()
 
     func requestConfirmation() {
         isConfirming = true
@@ -36,6 +35,10 @@ final class CleanSessionModel {
         emptiedVolumeIDs = []
     }
 
+    func markEmptied(_ volume: Volume) {
+        emptiedVolumeIDs.insert(volume.id)
+    }
+
     func clean(items: [ScanItem], catalog: RuleCatalog) async -> Set<ScanItem.ID> {
         guard !items.isEmpty else { return [] }
         isConfirming = false
@@ -43,7 +46,8 @@ final class CleanSessionModel {
         emptiedVolumeIDs = []
         let mode: CleanMode = moveToTrash ? .trash : .delete
         let results = await Cleaner(catalog: catalog).clean(items: items, mode: mode)
-        let volumes = mode == .trash ? await Self.loadVolumes() : []
+        let volumeService = VolumeService()
+        let volumes = mode == .trash ? await Self.loadVolumes(using: volumeService) : []
 
         var freedBytes: Int64 = 0
         var cleanedIDs: Set<ScanItem.ID> = []
@@ -65,7 +69,7 @@ final class CleanSessionModel {
             freedBytes += result.item.bytes
             if mode == .trash, result.item.rule.target != .dockerPrune {
                 let target = result.trashedURL ?? result.item.url
-                if let volume = Self.matchingVolume(for: target, in: volumes) {
+                if let volume = volumeService.volume(containing: target, in: volumes) {
                     affectedVolumeIDs.insert(volume.id)
                 }
             }
@@ -83,48 +87,10 @@ final class CleanSessionModel {
         return cleanedIDs
     }
 
-    func requestEmptyTrash(for volume: Volume) {
-        volumeToEmpty = volume
-    }
-
-    func confirmEmptyTrash() async {
-        guard let volume = volumeToEmpty else { return }
-        volumeToEmpty = nil
-        do {
-            try await Task.detached(priority: .userInitiated) {
-                try VolumeService().emptyTrash(of: volume)
-            }.value
-            emptiedVolumeIDs.insert(volume.id)
-        } catch {
-            emptyTrashError = error.localizedDescription
-        }
-    }
-
-    private static func loadVolumes() async -> [Volume] {
+    private static func loadVolumes(using service: VolumeService) async -> [Volume] {
         await Task.detached(priority: .userInitiated) {
-            VolumeService().volumes()
+            service.volumes()
         }.value
-    }
-
-    private static func matchingVolume(for url: URL, in volumes: [Volume]) -> Volume? {
-        let target = normalizedPath(url)
-        if let trashMatch = volumes.first(where: { isSameOrInside(target, parent: normalizedPath($0.trashURL)) }) {
-            return trashMatch
-        }
-        // Longest mount path wins because "/" is a prefix of "/Volumes/X".
-        return volumes
-            .filter { isSameOrInside(target, parent: normalizedPath($0.url)) }
-            .max { normalizedPath($0.url).count < normalizedPath($1.url).count }
-    }
-
-    private static func isSameOrInside(_ path: String, parent: String) -> Bool {
-        if path == parent { return true }
-        return parent == "/" ? path.hasPrefix("/") : path.hasPrefix(parent + "/")
-    }
-
-    private static func normalizedPath(_ url: URL) -> String {
-        let path = url.path(percentEncoded: false)
-        return path.count > 1 && path.hasSuffix("/") ? String(path.dropLast()) : path
     }
 
     private static func reason(for error: CleanError) -> String {

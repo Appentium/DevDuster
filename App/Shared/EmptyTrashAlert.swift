@@ -2,34 +2,39 @@ import SweepCore
 import SwiftUI
 
 struct EmptyTrashAlertModifier: ViewModifier {
-    @Binding var volume: Volume?
-    @Binding var error: String?
-    let onConfirm: () -> Void
+    @Bindable var model: EmptyTrashModel
+    let onEmptied: (Volume) async -> Void
 
     func body(content: Content) -> some View {
         content
             .alert(
-                "Empty Trash on \(volume?.name ?? "")?",
-                isPresented: Binding(get: { volume != nil }, set: { if !$0 { volume = nil } })
+                "Empty Trash on \(model.volumeToEmpty?.name ?? "")?",
+                isPresented: Binding(get: { model.volumeToEmpty != nil }, set: { if !$0 { model.volumeToEmpty = nil } })
             ) {
-                Button("Empty Trash", role: .destructive, action: onConfirm)
-                Button("Cancel", role: .cancel) { volume = nil }
+                Button("Empty Trash", role: .destructive) {
+                    Task {
+                        if let volume = await model.confirm() {
+                            await onEmptied(volume)
+                        }
+                    }
+                }
+                Button("Cancel", role: .cancel) { model.volumeToEmpty = nil }
             } message: {
                 Text("Items in this volume's Trash will be permanently deleted. This can't be undone.")
             }
             .alert(
                 "Failed to Empty Trash",
-                isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })
+                isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })
             ) {
-                Button("OK", role: .cancel) { error = nil }
+                Button("OK", role: .cancel) { model.error = nil }
             } message: {
-                Text(error ?? "")
+                Text(model.error ?? "")
             }
     }
 }
 
 extension View {
-    func emptyTrashAlerts(volume: Binding<Volume?>, error: Binding<String?>, onConfirm: @escaping () -> Void) -> some View {
-        modifier(EmptyTrashAlertModifier(volume: volume, error: error, onConfirm: onConfirm))
+    func emptyTrashAlerts(model: EmptyTrashModel, onEmptied: @escaping (Volume) async -> Void) -> some View {
+        modifier(EmptyTrashAlertModifier(model: model, onEmptied: onEmptied))
     }
 }

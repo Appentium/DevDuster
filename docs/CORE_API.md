@@ -50,6 +50,7 @@ The Docker item (`rule.target == .dockerPrune`) is never deleted as files: clean
 | `VolumeService(home:)` | `volumes() -> [Volume]` (local, mounted, browsable) |
 | `Volume` | `url`, `name`, `format` (`apfs`, `ntfs`…), `totalBytes`, `availableBytes`, `importantAvailableBytes`, `isInternal`, `isBoot`, `isReadOnly`, `trashURL` (`~/.Trash` on the boot disk, `.Trashes/<uid>` elsewhere) |
 | `trashSize(of:) -> Int64`, `emptyTrash(of:) throws` | Trashing on an external volume frees nothing until its trash is emptied. Emptying is permanent, so confirm first |
+| `volume(containing:in:) -> Volume?` | Matches `trashURL` first, then the longest mount path |
 
 ## Example
 

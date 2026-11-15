@@ -50,6 +50,16 @@ public struct VolumeService: Sendable {
         }
     }
 
+    public func volume(containing url: URL, in volumes: [Volume]) -> Volume? {
+        if let trashMatch = volumes.first(where: { url.isSameOrInside($0.trashURL) }) {
+            return trashMatch
+        }
+        // Longest mount path wins because "/" is a prefix of "/Volumes/X".
+        return volumes
+            .filter { url.isSameOrInside($0.url) }
+            .max { $0.url.filePath.count < $1.url.filePath.count }
+    }
+
     public func trashSize(of volume: Volume) -> Int64 {
         SizeCalculator().allocatedSize(of: volume.trashURL)
     }
