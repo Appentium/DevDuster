@@ -4,8 +4,9 @@ import SwiftUI
 struct SweepApp: App {
     var body: some Scene {
         Window("Sweep", id: "main") {
-            Text("Sweep")
-                .frame(minWidth: 480, minHeight: 320)
+            RootView()
+                .frame(minWidth: 820, minHeight: 540)
         }
+        .defaultSize(width: 980, height: 660)
     }
 }
