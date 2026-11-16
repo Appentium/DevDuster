@@ -67,7 +67,7 @@ public struct VolumeService: Sendable {
     public func emptyTrash(of volume: Volume) throws {
         var firstError: Error?
         for item in FilePath.children(of: volume.trashURL) {
-            do { try FileManager.default.removeItem(at: item) } catch { firstError = firstError ?? error }
+            do { try FilePath.remove(item) } catch { firstError = firstError ?? error }
         }
         if let firstError { throw firstError }
     }

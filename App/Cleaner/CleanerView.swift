@@ -27,7 +27,7 @@ struct CleanerView: View {
                 onClean: model.cleanSession.requestConfirmation
             )
         }
-        .navigationTitle("Cleaner")
+        .navigationTitle(title)
         .toolbar {
             ToolbarItem {
                 if model.isScanning {
@@ -50,9 +50,23 @@ struct CleanerView: View {
         )
     }
 
+    private var title: String {
+        switch model.grouping {
+        case .tier: "Cleaner"
+        case .platform: "Xcode & Android"
+        }
+    }
+
+    private var scanDescription: String {
+        switch model.grouping {
+        case .tier: "Scan your home folder and mounted volumes for caches, logs, and stale build artifacts."
+        case .platform: "Scan for Xcode, simulator, Gradle and Android SDK leftovers."
+        }
+    }
+
     @ViewBuilder
     private var content: some View {
-        if model.tierGroups.isEmpty && model.skipped.isEmpty && model.skippedItems.isEmpty && model.cleanSession.summary == nil {
+        if model.sections.isEmpty && model.skipped.isEmpty && model.skippedItems.isEmpty && model.cleanSession.summary == nil {
             if model.isScanning {
                 ProgressView("Scanning...")
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -67,7 +81,7 @@ struct CleanerView: View {
                 ContentUnavailableView {
                     Label("Ready to Scan", systemImage: "magnifyingglass")
                 } description: {
-                    Text("Scan your home folder and mounted volumes for caches, logs, and stale build artifacts.")
+                    Text(scanDescription)
                 } actions: {
                     Button("Scan", action: model.startScan)
                         .buttonStyle(.borderedProminent)
@@ -89,10 +103,10 @@ struct CleanerView: View {
                     }
                 }
 
-                ForEach(model.tierGroups) { tierGroup in
+                ForEach(model.sections) { section in
                     Section {
-                        ForEach(tierGroup.rules) { ruleGroup in
-                            RuleHeaderRow(ruleGroup: ruleGroup)
+                        ForEach(section.rules) { ruleGroup in
+                            RuleHeaderRow(ruleGroup: ruleGroup, showsTier: model.grouping == .platform)
                             ForEach(ruleGroup.items) { item in
                                 ScanItemRow(
                                     item: item,
@@ -102,7 +116,7 @@ struct CleanerView: View {
                             }
                         }
                     } header: {
-                        TierSectionHeader(tierGroup: tierGroup)
+                        RuleSectionHeader(section: section)
                     }
                 }
 
@@ -160,51 +174,87 @@ private struct ScanProgressBanner: View {
     }
 }
 
-private struct TierSectionHeader: View {
-    let tierGroup: CleanerModel.TierGroup
-
-    private var tierTitle: String {
-        switch tierGroup.tier {
-        case .safe: "Safe"
-        case .review: "Review"
-        case .caution: "Caution"
-        }
-    }
-
-    private var tierColor: Color {
-        switch tierGroup.tier {
-        case .safe: .green
-        case .review: .orange
-        case .caution: .red
-        }
-    }
+private struct RuleSectionHeader: View {
+    let section: CleanerModel.RuleSection
 
     var body: some View {
         HStack {
-            Text(tierTitle)
-                .font(.headline)
-            Text(tierTitle)
-                .font(.caption2.weight(.semibold))
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
-                .foregroundStyle(tierColor)
-                .background(tierColor.opacity(0.14), in: Capsule())
+            switch section.kind {
+            case .tier(let tier):
+                Text(tier.title)
+                    .font(.headline)
+                TierBadge(tier: tier)
+            case .platform(let platform):
+                Label(platform.title, systemImage: platform.systemImage)
+                    .font(.headline)
+            }
             Spacer()
-            Text(ByteFormatter.string(tierGroup.totalBytes))
+            Text(ByteFormatter.string(section.totalBytes))
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(.secondary)
         }
     }
 }
 
+private struct TierBadge: View {
+    let tier: Tier
+
+    var body: some View {
+        Text(tier.title)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .foregroundStyle(tier.color)
+            .background(tier.color.opacity(0.14), in: Capsule())
+    }
+}
+
+private extension Tier {
+    var title: String {
+        switch self {
+        case .safe: "Safe"
+        case .review: "Review"
+        case .caution: "Caution"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .safe: .green
+        case .review: .orange
+        case .caution: .red
+        }
+    }
+}
+
+private extension Rule.Platform {
+    var title: String {
+        switch self {
+        case .apple: "Apple"
+        case .android: "Android"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .apple: "apple.logo"
+        case .android: "smartphone"
+        }
+    }
+}
+
 private struct RuleHeaderRow: View {
     let ruleGroup: CleanerModel.RuleGroup
+    let showsTier: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
             HStack {
                 Text(ruleGroup.rule.title)
                     .font(.subheadline.weight(.semibold))
+                if showsTier {
+                    TierBadge(tier: ruleGroup.rule.tier)
+                }
                 Spacer()
                 Text(ByteFormatter.string(ruleGroup.totalBytes))
                     .font(.subheadline)

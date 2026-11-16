@@ -17,6 +17,7 @@ public enum HelperIdentity {
     func cleanArchivedLogs(reply: @escaping @Sendable (Data?, String?) -> Void)
     func rootTrashReport(reply: @escaping @Sendable (Data?, String?) -> Void)
     func emptyRootTrash(_ volumeName: String, reply: @escaping @Sendable (Data?, String?) -> Void)
+    func removeUninstallPaths(_ paths: [String], reply: @escaping @Sendable (Data?, String?) -> Void)
 }
 
 public struct PrivilegedItem: Codable, Sendable, Hashable {

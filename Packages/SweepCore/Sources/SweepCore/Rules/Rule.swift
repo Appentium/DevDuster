@@ -3,7 +3,20 @@ public struct Rule: Sendable, Hashable, Identifiable {
         case home([String])
         case project(directory: String, markers: [String])
         case dockerPrune
+        case simulatorDevices
+        case simulatorRuntimes
         case userSelected
+
+        public var runsTool: Bool {
+            switch self {
+            case .dockerPrune, .simulatorDevices, .simulatorRuntimes: true
+            case .home, .project, .userSelected: false
+            }
+        }
+    }
+
+    public enum Platform: String, CaseIterable, Sendable, Hashable {
+        case apple, android
     }
 
     public enum Pick: Sendable, Hashable {
@@ -15,6 +28,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
     public let id: String
     public let title: String
     public let tier: Tier
+    public let platform: Platform?
     public let target: Target
     public let regenerate: String
     public let pick: Pick
@@ -27,6 +41,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
         id: String,
         title: String,
         tier: Tier,
+        platform: Platform? = nil,
         target: Target,
         regenerate: String,
         pick: Pick = .all,
@@ -38,6 +53,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
         self.id = id
         self.title = title
         self.tier = tier
+        self.platform = platform
         self.target = target
         self.regenerate = regenerate
         self.pick = pick

@@ -2,6 +2,17 @@ import Foundation
 
 public enum HelperAllowlist {
     static let archiveMinimumAge: TimeInterval = 86_400
+    private static let applicationFolders: Set<String> = ["/Applications", "/Applications/Utilities"]
+    private static let systemUninstallFolders: Set<String> = [
+        "/Library/Application Support", "/Library/Caches", "/Library/Preferences", "/Library/Logs", "/Library/LaunchAgents",
+        "/Library/LaunchDaemons", "/Library/PrivilegedHelperTools", "/Library/Internet Plug-Ins", "/Library/QuickLook",
+        "/Library/Spotlight", "/Library/PreferencePanes", "/Library/Screen Savers", "/Library/Input Methods",
+        "/Library/Audio/Plug-Ins/HAL", "/Library/Audio/Plug-Ins/Components", "/private/var/db/receipts",
+    ]
+    private static let userUninstallFolders: Set<String> = [
+        "Application Support", "Caches", "Preferences", "Logs", "LaunchAgents", "Containers", "Group Containers",
+        "HTTPStorages", "WebKit", "Saved Application State",
+    ]
     static let aslMinimumAge: TimeInterval = 7 * 86_400
 
     public static func isSnapshotDate(_ value: String) -> Bool {
@@ -40,6 +51,20 @@ public enum HelperAllowlist {
         let parts = name.split(separator: ".", omittingEmptySubsequences: false)
         guard parts.count > 1, let base = parts.first, let suffix = parts.last else { return false }
         return !base.isEmpty && !isASCIIDigits(base) && isASCIIDigits(suffix)
+    }
+
+    public static func isUninstallPath(_ path: String) -> Bool {
+        let url = URL(filePath: path)
+        let name = url.lastPathComponent
+        let parent = url.deletingLastPathComponent().filePath
+        let lowered = name.lowercased()
+        guard path.hasPrefix("/"), url.standardized.filePath == path, isSingleComponent(name),
+              !lowered.hasPrefix("com.apple."), !lowered.contains("com.appentium.sweep"), lowered != "sweep.app" else { return false }
+        if applicationFolders.contains(parent) { return name.hasSuffix(".app") }
+        if systemUninstallFolders.contains(parent) { return true }
+        let components = parent.split(separator: "/").map(String.init)
+        guard components.count >= 4, components[0] == "Users", isSingleComponent(components[1]), components[2] == "Library" else { return false }
+        return userUninstallFolders.contains(components.dropFirst(3).joined(separator: "/"))
     }
 
     public static func isTrashVolume(_ name: String, mounted: [String]) -> Bool {

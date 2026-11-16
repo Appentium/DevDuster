@@ -7,6 +7,8 @@ struct CleanFooterBar: View {
     let isDisabled: Bool
     let isCleaning: Bool
     let onClean: () -> Void
+    var actionTitle = "Clean"
+    var showsTrashToggle = true
 
     var body: some View {
         HStack(spacing: 16) {
@@ -18,9 +20,11 @@ struct CleanFooterBar: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Toggle("Move to Trash", isOn: $moveToTrash)
-                .toggleStyle(.checkbox)
-                .disabled(isCleaning)
+            if showsTrashToggle {
+                Toggle("Move to Trash", isOn: $moveToTrash)
+                    .toggleStyle(.checkbox)
+                    .disabled(isCleaning)
+            }
             Button {
                 onClean()
             } label: {
@@ -28,11 +32,11 @@ struct CleanFooterBar: View {
                     ProgressView()
                         .controlSize(.small)
                 } else {
-                    Text("Clean")
+                    Text(actionTitle)
                 }
             }
             .buttonStyle(.borderedProminent)
-            .tint(moveToTrash ? .accentColor : .red)
+            .tint(moveToTrash && showsTrashToggle ? .accentColor : .red)
             .disabled(isDisabled || isCleaning)
         }
         .padding(.horizontal, 16)

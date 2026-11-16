@@ -9,17 +9,19 @@ struct EmptyTrashAlertModifier: ViewModifier {
         content
             .alert(
                 "Empty Trash on \(model.volumeToEmpty?.name ?? "")?",
-                isPresented: Binding(get: { model.volumeToEmpty != nil }, set: { if !$0 { model.volumeToEmpty = nil } })
-            ) {
+                isPresented: Binding(get: { model.volumeToEmpty != nil }, set: { if !$0 { model.volumeToEmpty = nil } }),
+                // Dismissal clears volumeToEmpty before the Task runs, so the volume must be captured here.
+                presenting: model.volumeToEmpty
+            ) { volume in
                 Button("Empty Trash", role: .destructive) {
                     Task {
-                        if let volume = await model.confirm() {
-                            await onEmptied(volume)
+                        if let emptied = await model.empty(volume) {
+                            await onEmptied(emptied)
                         }
                     }
                 }
                 Button("Cancel", role: .cancel) { model.volumeToEmpty = nil }
-            } message: {
+            } message: { _ in
                 Text("Items in this volume's Trash will be permanently deleted. This can't be undone.")
             }
             .alert(

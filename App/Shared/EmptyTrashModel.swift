@@ -13,9 +13,7 @@ final class EmptyTrashModel {
         volumeToEmpty = volume
     }
 
-    func confirm() async -> Volume? {
-        guard let volume = volumeToEmpty else { return nil }
-        volumeToEmpty = nil
+    func empty(_ volume: Volume) async -> Volume? {
         isEmptying = true
         defer { isEmptying = false }
         do {

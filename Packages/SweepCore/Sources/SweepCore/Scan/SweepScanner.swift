@@ -59,9 +59,10 @@ public struct SweepScanner: Sendable {
         var items = measured.filter { $0.owner == nil }.map(\.item)
         let skippedItems = measured.compactMap { entry in entry.owner.map { SkippedItem(item: entry.item, runningApp: $0.name) } }
 
-        if scope == nil, let dockerItem = dockerItem(tiers: options.tiers) {
-            emit(.item(dockerItem))
-            items.append(dockerItem)
+        if scope == nil {
+            let tooled = catalog.rules.filter { options.tiers.contains($0.tier) }.flatMap(toolItems)
+            tooled.forEach { emit(.item($0)) }
+            items += tooled
         }
 
         let order = Dictionary(uniqueKeysWithValues: catalog.rules.enumerated().map { ($1.id, $0) })
@@ -131,10 +132,23 @@ public struct SweepScanner: Sendable {
         return FilePath.modified(info) < Date.now.addingTimeInterval(-TimeInterval(days) * 86_400)
     }
 
-    private func dockerItem(tiers: Set<Tier>) -> ScanItem? {
-        guard let rule = catalog.rules.first(where: { $0.target == .dockerPrune }), tiers.contains(rule.tier) else { return nil }
-        let docker = Docker(home: catalog.home)
-        guard let bytes = docker.reclaimableBytes(), bytes > 0 else { return nil }
-        return ScanItem(rule: rule, url: docker.dataURL, bytes: bytes)
+    private func toolItems(for rule: Rule) -> [ScanItem] {
+        switch rule.target {
+        case .dockerPrune:
+            let docker = Docker(home: catalog.home)
+            guard let bytes = docker.reclaimableBytes(), bytes > 0 else { return [] }
+            return [ScanItem(rule: rule, url: docker.dataURL, bytes: bytes)]
+        case .simulatorDevices:
+            let simulators = Simulators(home: catalog.home)
+            let sizes = SizeCalculator()
+            let bytes = simulators.unavailableDeviceFolders().reduce(Int64(0)) { $0 + sizes.allocatedSize(of: $1) }
+            return bytes > 0 ? [ScanItem(rule: rule, url: simulators.devicesURL, bytes: bytes)] : []
+        case .simulatorRuntimes:
+            return Simulators(home: catalog.home).oldRuntimes().map {
+                ScanItem(rule: rule, url: URL(filePath: $0.runtimeBundlePath), bytes: $0.sizeBytes)
+            }
+        case .home, .project, .userSelected:
+            return []
+        }
     }
 }

@@ -7,6 +7,8 @@ struct RootView: View {
     let volumeMonitor: VolumeMonitorModel
     @State private var fdaModel = FullDiskAccessModel()
     @State private var dashboardModel = DashboardModel()
+    @State private var uninstallerModel = UninstallerModel()
+    @State private var developerJunkModel = CleanerModel(grouping: .platform)
     @State private var flutterModel = FlutterProjectsModel()
     @State private var diskMapModel = DiskMapModel()
     @State private var largeFilesModel = LargeFilesModel()
@@ -44,6 +46,10 @@ struct RootView: View {
             }
         case .cleaner:
             CleanerView(model: cleanerModel)
+        case .uninstaller:
+            UninstallerView(model: uninstallerModel)
+        case .developerJunk:
+            CleanerView(model: developerJunkModel)
         case .flutterProjects:
             FlutterProjectsView(model: flutterModel)
         case .diskMap:

@@ -52,6 +52,10 @@ final class HelperService: NSObject, SweepHelperProtocol {
         respond(reply) { try maintenance.emptyRootTrash(volumeName) }
     }
 
+    func removeUninstallPaths(_ paths: [String], reply: @escaping @Sendable (Data?, String?) -> Void) {
+        respond(reply) { try maintenance.removeUninstallPaths(paths) }
+    }
+
     private func respond(_ reply: (Data?, String?) -> Void, _ work: () throws -> some Encodable) {
         do { reply(try JSONEncoder().encode(work()), nil) } catch { reply(nil, error.localizedDescription) }
     }
