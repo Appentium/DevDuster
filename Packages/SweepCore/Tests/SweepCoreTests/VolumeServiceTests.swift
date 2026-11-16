@@ -29,6 +29,22 @@ import Testing
         #expect(FileManager.default.fileExists(atPath: volume.trashURL.filePath))
     }
 
+    @Test func emptyTrashRemovesReadOnlyFolders() throws {
+        let fixture = try Fixture()
+        try fixture.file("volume/.Trashes/501/dotslash/tool/bin/run", bytes: 1_000)
+        for folder in ["dotslash/tool/bin", "dotslash/tool", "dotslash"] {
+            try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: fixture.url("volume/.Trashes/501/\(folder)").filePath)
+        }
+        let volume = Volume(
+            url: fixture.url("volume"), name: "Test", format: "apfs", totalBytes: 0, availableBytes: 0,
+            importantAvailableBytes: 0, isInternal: false, isBoot: false, isReadOnly: false,
+            trashURL: fixture.url("volume/.Trashes/501")
+        )
+
+        try VolumeService(home: fixture.home).emptyTrash(of: volume)
+        #expect(FilePath.children(of: volume.trashURL).isEmpty)
+    }
+
     @Test func volumeContainingMatchesTrashThenLongestMount() {
         let boot = Volume(
             url: URL(filePath: "/"), name: "Macintosh HD", format: "apfs", totalBytes: 0, availableBytes: 0,

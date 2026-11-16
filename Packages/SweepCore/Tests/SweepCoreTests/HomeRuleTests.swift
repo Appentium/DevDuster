@@ -114,6 +114,22 @@ import Testing
         #expect(Set(offered) == ["hosted", "git", "_temp"])
     }
 
+    @Test func developerCatalogOffersOnlyAppleAndAndroidJunk() async throws {
+        let fixture = try Fixture()
+        try fixture.file("home/Library/Developer/Xcode/DerivedData/App-abc/info.plist")
+        try fixture.file("home/Library/Developer/Xcode/UserData/IB%20Support/Simulator/data.bin")
+        try fixture.file("home/.android/cache/sdkbin-1.xml")
+        try fixture.file("home/Library/Caches/com.example.app/data.bin")
+        try fixture.file("home/Library/Logs/app.log")
+        let catalog = RuleCatalog(home: fixture.home, developerOnly: true)
+        let processes = ProcessProbe(isRunning: { _ in false }, runningApps: { [] })
+
+        let report = await SweepScanner(catalog: catalog, volumes: VolumeService(home: fixture.home), processes: processes)
+            .run(ScanOptions(scope: [fixture.root]))
+        #expect(catalog.rules.allSatisfy { $0.platform != nil })
+        #expect(Set(report.items.map(\.rule.id)) == ["xcode.derived-data", "xcode.ib-support", "android.sdk-cache"])
+    }
+
     @Test func streamReportsItemsThenFinishes() async throws {
         let fixture = try Fixture()
         try fixture.file("home/Library/Logs/app.log")

@@ -3,6 +3,8 @@ import Foundation
 
 public struct SystemMaintenance: Sendable {
     private static let tmutil = URL(filePath: "/usr/bin/tmutil")
+    private static let launchctl = URL(filePath: "/bin/launchctl")
+    private static let launchDaemons = "/Library/LaunchDaemons"
     private static let volumesRoot = "/Volumes"
 
     private let cachesRoot: URL
@@ -87,6 +89,25 @@ public struct SystemMaintenance: Sendable {
         guard let trash = rootTrash(on: volumeName) else { return PrivilegedCleanResult() }
         var result = PrivilegedCleanResult()
         FilePath.children(of: trash).forEach { remove($0, into: &result) }
+        return result
+    }
+
+    public func removeUninstallPaths(_ paths: [String]) throws(HelperError) -> PrivilegedCleanResult {
+        if let invalid = paths.first(where: { !HelperAllowlist.isUninstallPath($0) }) { throw .refused("'\(invalid)' is not an uninstallable location.") }
+        var result = PrivilegedCleanResult()
+        for path in Set(paths).sorted() {
+            let url = URL(filePath: path)
+            // A linked folder would let an allowlisted path resolve somewhere else.
+            guard FilePath.realParent(url)?.filePath == path else {
+                result.failures.append("\(path): refused because its folder is a link")
+                continue
+            }
+            guard FilePath.status(url) != nil else { continue }
+            if url.deletingLastPathComponent().filePath == Self.launchDaemons, let label = LaunchdPlist(url: url)?.label {
+                _ = Command.run(Self.launchctl, ["bootout", "system/\(label)"])
+            }
+            remove(url, into: &result)
+        }
         return result
     }
 

@@ -59,6 +59,11 @@ public struct HelperClient: Sendable {
         return combined
     }
 
+    public func removeUninstallPaths(_ paths: [String]) async throws(HelperError) -> PrivilegedCleanResult {
+        if let invalid = paths.first(where: { !HelperAllowlist.isUninstallPath($0) }) { throw .refused("'\(invalid)' is not an uninstallable location.") }
+        return try await call { $0.removeUninstallPaths(paths, reply: $1) }
+    }
+
     private func call<Value: Decodable & Sendable>(_ send: @escaping @Sendable (SweepHelperProtocol, @escaping Reply) -> Void) async throws(HelperError) -> Value {
         try await request { proxy, finish in
             send(proxy) { data, message in

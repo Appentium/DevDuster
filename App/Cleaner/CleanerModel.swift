@@ -13,15 +13,25 @@ final class CleanerModel {
         var totalBytes: Int64 { items.reduce(0) { $0 + $1.bytes } }
     }
 
-    struct TierGroup: Identifiable {
-        let tier: Tier
+    enum Grouping {
+        case tier, platform
+    }
+
+    struct RuleSection: Identifiable {
+        enum Kind: Hashable {
+            case tier(Tier)
+            case platform(Rule.Platform)
+        }
+
+        let kind: Kind
         let rules: [RuleGroup]
 
-        var id: Tier { tier }
+        var id: Kind { kind }
         var totalBytes: Int64 { rules.reduce(0) { $0 + $1.totalBytes } }
     }
 
-    private let catalog = RuleCatalog()
+    let grouping: Grouping
+    private let catalog: RuleCatalog
     private let settings = SweepSettings()
     private var scanTask: Task<Void, Never>?
     private var manuallyDeselectedIDs: Set<ScanItem.ID> = []
@@ -31,11 +41,16 @@ final class CleanerModel {
     private(set) var scanPhase: ScanPhase = .rules
     private(set) var currentPath = ""
     private(set) var items: [ScanItem] = []
-    private(set) var tierGroups: [TierGroup] = []
+    private(set) var sections: [RuleSection] = []
     private(set) var skipped: [SkippedRule] = []
     private(set) var skippedItems: [SkippedItem] = []
     var selectedIDs: Set<ScanItem.ID> = []
     var cleanSession = CleanSessionModel()
+
+    init(grouping: Grouping = .tier) {
+        self.grouping = grouping
+        catalog = RuleCatalog(developerOnly: grouping == .platform)
+    }
 
     var selectedItems: [ScanItem] {
         items.filter { selectedIDs.contains($0.id) }
@@ -49,7 +64,7 @@ final class CleanerModel {
         scanTask?.cancel()
         cleanSession.dismissSummary()
         items = []
-        tierGroups = []
+        sections = []
         skipped = []
         skippedItems = []
         selectedIDs = []
@@ -120,31 +135,34 @@ final class CleanerModel {
     }
 
     private func rebuildGroups() {
-        var result: [TierGroup] = []
-        for tier in Tier.allCases {
-            var rules: [RuleGroup] = []
-            var ruleIndexByID: [String: Int] = [:]
-            var buckets: [[ScanItem]] = []
+        let kinds: [RuleSection.Kind] = switch grouping {
+        case .tier: Tier.allCases.map { .tier($0) }
+        case .platform: Rule.Platform.allCases.map { .platform($0) }
+        }
+        sections = kinds.compactMap { kind in
+            let rules = ruleGroups(in: items.filter { sectionKind(of: $0.rule) == kind })
+            return rules.isEmpty ? nil : RuleSection(kind: kind, rules: rules)
+        }
+    }
 
-            for item in items where item.rule.tier == tier {
-                if let index = ruleIndexByID[item.rule.id] {
-                    buckets[index].append(item)
-                } else {
-                    ruleIndexByID[item.rule.id] = buckets.count
-                    buckets.append([item])
-                }
-            }
+    private func sectionKind(of rule: Rule) -> RuleSection.Kind? {
+        switch grouping {
+        case .tier: .tier(rule.tier)
+        case .platform: rule.platform.map { .platform($0) }
+        }
+    }
 
-            for bucket in buckets {
-                if let rule = bucket.first?.rule {
-                    rules.append(RuleGroup(rule: rule, items: bucket))
-                }
-            }
-
-            if !rules.isEmpty {
-                result.append(TierGroup(tier: tier, rules: rules))
+    private func ruleGroups(in items: [ScanItem]) -> [RuleGroup] {
+        var ruleIndexByID: [String: Int] = [:]
+        var buckets: [[ScanItem]] = []
+        for item in items {
+            if let index = ruleIndexByID[item.rule.id] {
+                buckets[index].append(item)
+            } else {
+                ruleIndexByID[item.rule.id] = buckets.count
+                buckets.append([item])
             }
         }
-        tierGroups = result
+        return buckets.compactMap { bucket in bucket.first.map { RuleGroup(rule: $0.rule, items: bucket) } }
     }
 }

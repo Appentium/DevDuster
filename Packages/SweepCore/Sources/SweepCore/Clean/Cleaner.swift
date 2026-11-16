@@ -31,11 +31,13 @@ public struct Cleaner: Sendable {
     private let denyGuard: DenyGuard
     private let log: CleanLog
     private let docker: Docker
+    private let simulators: Simulators
 
     public init(catalog: RuleCatalog, log: CleanLog? = nil) {
         denyGuard = DenyGuard(catalog: catalog)
         self.log = log ?? CleanLog(home: catalog.home)
         docker = Docker(home: catalog.home)
+        simulators = Simulators(home: catalog.home)
     }
 
     @concurrent public func clean(items: [ScanItem], mode: CleanMode = .trash) async -> [CleanResult] {
@@ -48,7 +50,16 @@ public struct Cleaner: Sendable {
     }
 
     private func clean(_ item: ScanItem, mode: CleanMode) -> CleanResult {
-        if item.rule.target == .dockerPrune { return CleanResult(item: item, error: pruneDocker(), trashedURL: nil) }
+        switch item.rule.target {
+        case .dockerPrune:
+            return CleanResult(item: item, error: pruneDocker(), trashedURL: nil)
+        case .simulatorDevices:
+            return CleanResult(item: item, error: logged(simulators.deleteUnavailableDevices(), item: item), trashedURL: nil)
+        case .simulatorRuntimes:
+            return CleanResult(item: item, error: logged(simulators.deleteRuntime(at: item.url), item: item), trashedURL: nil)
+        case .home, .project, .userSelected:
+            break
+        }
         let target: URL
         do { target = try denyGuard.check(item.url, rule: item.rule) } catch {
             return CleanResult(item: item, error: .refused(error), trashedURL: nil)
@@ -57,7 +68,7 @@ public struct Cleaner: Sendable {
         do {
             switch mode {
             case .trash: try FileManager.default.trashItem(at: target, resultingItemURL: &trashed)
-            case .delete: try FileManager.default.removeItem(at: target)
+            case .delete: try FilePath.remove(target)
             }
         } catch {
             return CleanResult(item: item, error: .failed(error.localizedDescription), trashedURL: nil)
@@ -65,6 +76,11 @@ public struct Cleaner: Sendable {
         // The removal already happened, so a log write failure must not report it as failed.
         try? log.append(mode: mode, bytes: item.bytes, path: target.filePath)
         return CleanResult(item: item, error: nil, trashedURL: trashed as URL?)
+    }
+
+    private func logged(_ error: CleanError?, item: ScanItem) -> CleanError? {
+        if error == nil { try? log.append(mode: .delete, bytes: item.bytes, path: item.url.filePath) }
+        return error
     }
 
     private func pruneDocker() -> CleanError? {

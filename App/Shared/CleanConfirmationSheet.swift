@@ -6,6 +6,7 @@ struct CleanConfirmationSheet: View {
     let moveToTrash: Bool
     let onConfirm: () -> Void
     let onCancel: () -> Void
+    var note: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -32,6 +33,12 @@ struct CleanConfirmationSheet: View {
                     .font(.body)
                     .fontWeight(.medium)
                     .foregroundStyle(.red)
+            }
+
+            if let note {
+                Text(note)
+                    .font(.callout)
+                    .foregroundStyle(.orange)
             }
 
             HStack {

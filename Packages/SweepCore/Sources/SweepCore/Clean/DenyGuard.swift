@@ -84,7 +84,7 @@ public struct DenyGuard: Sendable {
                 candidate = candidate.deletingLastPathComponent()
             }
             return false
-        case .dockerPrune:
+        case .dockerPrune, .simulatorDevices, .simulatorRuntimes:
             return false
         case .userSelected:
             return true

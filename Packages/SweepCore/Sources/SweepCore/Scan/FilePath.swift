@@ -33,6 +33,22 @@ enum FilePath {
         return names.sorted().map { url.appending(path: $0, directoryHint: .notDirectory) }
     }
 
+    static func remove(_ url: URL) throws {
+        do {
+            try FileManager.default.removeItem(at: url)
+        } catch {
+            // DotSlash and Go's module cache leave folders read-only, which blocks deleting their contents.
+            makeOwnFoldersWritable(url)
+            try FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private static func makeOwnFoldersWritable(_ url: URL) {
+        guard let info = status(url), isDirectory(info), info.st_uid == getuid() else { return }
+        chmod(url.filePath, (info.st_mode & 0o7777) | S_IRWXU)
+        children(of: url).forEach(makeOwnFoldersWritable)
+    }
+
     static func modified(_ info: stat) -> Date {
         Date(timeIntervalSince1970: TimeInterval(info.st_mtimespec.tv_sec))
     }

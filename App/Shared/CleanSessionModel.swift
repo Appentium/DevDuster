@@ -67,7 +67,7 @@ final class CleanSessionModel {
             }
             cleanedIDs.insert(result.item.id)
             freedBytes += result.item.bytes
-            if mode == .trash, result.item.rule.target != .dockerPrune {
+            if mode == .trash, !result.item.rule.target.runsTool {
                 let target = result.trashedURL ?? result.item.url
                 if let volume = volumeService.volume(containing: target, in: volumes) {
                     affectedVolumeIDs.insert(volume.id)
