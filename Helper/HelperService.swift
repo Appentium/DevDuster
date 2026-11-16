@@ -1,14 +1,36 @@
 import Foundation
+import Synchronization
 import SweepCore
 
 final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
+    private let openConnections = OpenConnections()
+
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         // Messages from a caller that fails this requirement are dropped and the connection invalidated.
         connection.setCodeSigningRequirement(HelperIdentity.clientRequirement)
         connection.exportedInterface = NSXPCInterface(with: SweepHelperProtocol.self)
         connection.exportedObject = HelperService()
+        openConnections.opened()
+        connection.invalidationHandler = { [openConnections] in openConnections.closed() }
         connection.resume()
         return true
+    }
+}
+
+final class OpenConnections: Sendable {
+    private let count = Mutex(0)
+
+    func opened() {
+        count.withLock { $0 += 1 }
+    }
+
+    func closed() {
+        let remaining = count.withLock { count in
+            count -= 1
+            return count
+        }
+        // Exiting when idle makes launchd start the current binary after the app is replaced.
+        if remaining == 0 { exit(0) }
     }
 }
 

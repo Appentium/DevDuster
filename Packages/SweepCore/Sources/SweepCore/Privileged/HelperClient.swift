@@ -78,6 +78,19 @@ public struct HelperClient: Sendable {
     private func request<Value: Sendable>(
         _ body: @escaping @Sendable (SweepHelperProtocol, @escaping @Sendable (Result<Value, HelperError>) -> Void) -> Void
     ) async throws(HelperError) -> Value {
+        do {
+            return try await connect(body)
+        } catch .unavailable(let reason) {
+            // Replacing the app can unload the helper while SMAppService still reports it enabled; registering reloads it.
+            let installer = HelperInstaller()
+            guard installer.status == .enabled, (try? installer.register()) == .enabled else { throw .unavailable(reason) }
+            return try await connect(body)
+        }
+    }
+
+    private func connect<Value: Sendable>(
+        _ body: @escaping @Sendable (SweepHelperProtocol, @escaping @Sendable (Result<Value, HelperError>) -> Void) -> Void
+    ) async throws(HelperError) -> Value {
         let connection = NSXPCConnection(machServiceName: HelperIdentity.machServiceName, options: .privileged)
         connection.remoteObjectInterface = NSXPCInterface(with: SweepHelperProtocol.self)
         connection.setCodeSigningRequirement(HelperIdentity.helperRequirement)
