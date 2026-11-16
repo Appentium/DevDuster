@@ -75,8 +75,8 @@ struct LeftoverFinder: Sendable {
         let appSignals = orphanFiles.filter { $0.value.contains { !$0.url.filePath.contains("/Library/Caches/") && !$0.url.filePath.contains("/Library/Logs/") } }
         matches.orphans = appSignals.map { key, files in
             UninstallCandidate(
-                id: "orphan:\(key)", kind: .leftovers, title: key, detail: "\(files.count) items from an app that is no longer installed",
-                bundleURL: nil, note: nil, isHidden: false, lastUsed: nil, files: files, quitBundleIDs: [], brewPackage: nil
+                id: "orphan:\(key)", kind: .leftovers, title: key, detail: "\(files.count) items",
+                bundleURL: nil, note: "From an app that is no longer installed", isHidden: false, lastUsed: nil, files: files, quitBundleIDs: [], brewPackage: nil
             )
         }
         return matches

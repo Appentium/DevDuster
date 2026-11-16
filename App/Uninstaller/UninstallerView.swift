@@ -20,10 +20,21 @@ struct UninstallerView: View {
             if model.hasScanned {
                 HSplitView {
                     candidateList
-                        .frame(minWidth: 260, idealWidth: 320, maxWidth: 440)
+                        .frame(minWidth: 280, idealWidth: 340, maxWidth: 460)
                     detail
                         .frame(minWidth: 400, maxWidth: .infinity, maxHeight: .infinity)
                 }
+                Divider()
+                CleanFooterBar(
+                    selectedCount: model.checkedCandidates.count,
+                    selectedBytes: model.checkedBytes,
+                    moveToTrash: $model.moveToTrash,
+                    isDisabled: !model.canUninstall || model.isScanning,
+                    isCleaning: model.isRemoving,
+                    onClean: model.requestUninstall,
+                    actionTitle: model.kind == .app || model.kind == .homebrew ? "Uninstall" : "Remove",
+                    showsTrashToggle: model.kind != .homebrew
+                )
             } else {
                 ProgressView(model.progress)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -45,10 +56,10 @@ struct UninstallerView: View {
         .onAppear(perform: model.scanIfNeeded)
         .sheet(isPresented: $model.isConfirming) {
             CleanConfirmationSheet(
-                itemCount: model.selected?.brewPackage == nil ? model.selectedFiles.count : 1,
-                totalBytes: model.selectedBytes,
-                moveToTrash: model.moveToTrash && model.selected?.brewPackage == nil,
-                onConfirm: { Task { await model.uninstallSelected() } },
+                itemCount: model.checkedItemCount,
+                totalBytes: model.checkedBytes,
+                moveToTrash: model.moveToTrash && model.kind != .homebrew,
+                onConfirm: { Task { await model.uninstallChecked() } },
                 onCancel: { model.isConfirming = false },
                 note: model.confirmationNote
             )
@@ -59,9 +70,28 @@ struct UninstallerView: View {
     }
 
     private var candidateList: some View {
-        List(model.visibleCandidates, selection: $model.selectedID) { candidate in
-            CandidateRow(candidate: candidate)
+        VStack(spacing: 0) {
+            HStack {
+                Toggle("Select All", isOn: Binding(get: { model.areAllVisibleChecked }, set: model.setAllVisibleChecked))
+                    .toggleStyle(.checkbox)
+                    .disabled(model.visibleCandidates.isEmpty)
+                Spacer()
+                Text("\(model.checkedCandidates.count) of \(model.visibleCandidates.count) checked")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            Divider()
+            List(model.visibleCandidates, selection: $model.selectedID) { candidate in
+                CandidateRow(
+                    candidate: candidate,
+                    bytes: model.bytes(for: candidate),
+                    isChecked: model.isChecked(candidate),
+                    onToggle: { model.toggleChecked(candidate) }
+                )
                 .tag(candidate.id)
+            }
         }
         .overlay {
             if model.visibleCandidates.isEmpty {
@@ -84,17 +114,6 @@ struct UninstallerView: View {
                     }
                     .listStyle(.inset)
                 }
-                Divider()
-                CleanFooterBar(
-                    selectedCount: candidate.brewPackage == nil ? model.selectedFiles.count : 1,
-                    selectedBytes: model.selectedBytes,
-                    moveToTrash: $model.moveToTrash,
-                    isDisabled: !model.canUninstall || model.isScanning,
-                    isCleaning: model.isRemoving,
-                    onClean: model.requestUninstall,
-                    actionTitle: candidate.kind == .app || candidate.kind == .homebrew ? "Uninstall" : "Remove",
-                    showsTrashToggle: candidate.brewPackage == nil
-                )
             }
         } else {
             ContentUnavailableView("Select an Item", systemImage: model.kind.systemImage, description: Text(model.kind.hint))
@@ -104,9 +123,17 @@ struct UninstallerView: View {
 
 private struct CandidateRow: View {
     let candidate: UninstallCandidate
+    let bytes: Int64
+    let isChecked: Bool
+    let onToggle: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
+            Toggle(isOn: Binding(get: { isChecked }, set: { _ in onToggle() })) {
+                EmptyView()
+            }
+            .toggleStyle(.checkbox)
+            .labelsHidden()
             CandidateIcon(candidate: candidate, size: 28)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
@@ -128,7 +155,7 @@ private struct CandidateRow: View {
                     .truncationMode(.middle)
             }
             Spacer()
-            Text(ByteFormatter.string(candidate.totalBytes))
+            Text(ByteFormatter.string(bytes))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)
         }

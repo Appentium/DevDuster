@@ -22,6 +22,7 @@ final class UninstallerModel {
     var kind: UninstallCandidate.Kind = .app
     var searchText = ""
     var selectedID: UninstallCandidate.ID?
+    var checkedIDs: Set<UninstallCandidate.ID> = []
     var moveToTrash = true
     var isConfirming = false
     var outcome: UninstallOutcome?
@@ -35,30 +36,35 @@ final class UninstallerModel {
     }
 
     var selected: UninstallCandidate? {
-        candidates.first { $0.id == selectedID }
+        candidates.first { $0.id == selectedID && $0.kind == kind }
     }
 
-    var selectedFiles: [FoundFile] {
-        guard let selected else { return [] }
-        let ids = selections[selected.id] ?? Self.defaultSelection(of: selected)
-        return selected.files.filter { ids.contains($0.id) }
+    var checkedCandidates: [UninstallCandidate] {
+        candidates.filter { $0.kind == kind && checkedIDs.contains($0.id) }
     }
 
-    var selectedBytes: Int64 {
-        selected?.brewPackage?.bytes ?? selectedFiles.reduce(0) { $0 + $1.bytes }
+    var checkedItemCount: Int {
+        checkedCandidates.reduce(0) { $0 + ($1.brewPackage == nil ? files(for: $1).count : 1) }
+    }
+
+    var checkedBytes: Int64 {
+        checkedCandidates.reduce(0) { $0 + bytes(for: $1) }
     }
 
     var canUninstall: Bool {
-        selected?.brewPackage != nil || !selectedFiles.isEmpty
+        checkedCandidates.contains { $0.brewPackage != nil || !files(for: $0).isEmpty }
+    }
+
+    var areAllVisibleChecked: Bool {
+        let visible = visibleCandidates
+        return !visible.isEmpty && visible.allSatisfy { checkedIDs.contains($0.id) }
     }
 
     var confirmationNote: String? {
-        if let package = selected?.brewPackage {
-            return package.kind == .cask
-                ? "Runs brew uninstall --cask --zap \(package.token), which also removes the files Homebrew lists for this app."
-                : "Runs brew uninstall --formula \(package.token)."
+        if kind == .homebrew {
+            return "Runs brew uninstall for each package. Casks use --zap, which also removes the files Homebrew lists for each app."
         }
-        let adminCount = selectedFiles.filter(\.needsAdmin).count
+        let adminCount = checkedCandidates.flatMap(files(for:)).filter(\.needsAdmin).count
         guard adminCount > 0 else { return nil }
         return "\(adminCount) items need administrator rights and are deleted permanently by Sweep's helper, even with Move to Trash on."
     }
@@ -83,14 +89,23 @@ final class UninstallerModel {
             guard let self, !Task.isCancelled else { return }
             candidates = found
             selections = [:]
-            if selected == nil { selectedID = nil }
+            checkedIDs = []
             hasScanned = true
             isScanning = false
         }
     }
 
+    func files(for candidate: UninstallCandidate) -> [FoundFile] {
+        let ids = selections[candidate.id] ?? Self.defaultSelection(of: candidate)
+        return candidate.files.filter { ids.contains($0.id) }
+    }
+
+    func bytes(for candidate: UninstallCandidate) -> Int64 {
+        candidate.brewPackage?.bytes ?? files(for: candidate).reduce(0) { $0 + $1.bytes }
+    }
+
     func isSelected(_ file: FoundFile) -> Bool {
-        selectedFiles.contains { $0.id == file.id }
+        selected.map { files(for: $0).contains { $0.id == file.id } } ?? false
     }
 
     func toggle(_ file: FoundFile) {
@@ -98,26 +113,51 @@ final class UninstallerModel {
         var ids = selections[selected.id] ?? Self.defaultSelection(of: selected)
         if ids.contains(file.id) { ids.remove(file.id) } else { ids.insert(file.id) }
         selections[selected.id] = ids
+        // Picking files of an item means it should be part of the next uninstall.
+        if ids.isEmpty { checkedIDs.remove(selected.id) } else { checkedIDs.insert(selected.id) }
+    }
+
+    func isChecked(_ candidate: UninstallCandidate) -> Bool {
+        checkedIDs.contains(candidate.id)
+    }
+
+    func toggleChecked(_ candidate: UninstallCandidate) {
+        if checkedIDs.contains(candidate.id) { checkedIDs.remove(candidate.id) } else { checkedIDs.insert(candidate.id) }
+    }
+
+    func setAllVisibleChecked(_ isChecked: Bool) {
+        let ids = visibleCandidates.map(\.id)
+        if isChecked { checkedIDs.formUnion(ids) } else { checkedIDs.subtract(ids) }
     }
 
     func requestUninstall() {
         isConfirming = true
     }
 
-    func uninstallSelected() async {
+    func uninstallChecked() async {
         isConfirming = false
-        guard let candidate = selected else { return }
+        // Dependent formulae must go before the formulae they depend on.
+        let batch = checkedCandidates.sorted { $0.brewPackage?.isDependency != true && $1.brewPackage?.isDependency == true }
+        guard !batch.isEmpty else { return }
         isRemoving = true
         defer { isRemoving = false }
 
-        let stillRunning = await Uninstaller.quit(bundleIDs: candidate.quitBundleIDs)
+        let stillRunning = await Uninstaller.quit(bundleIDs: batch.flatMap(\.quitBundleIDs))
         guard stillRunning.isEmpty else {
             outcome = UninstallOutcome(title: "Couldn't Quit", message: "Quit \(stillRunning.joined(separator: ", ")) and try again.")
             return
         }
-        let result = await Uninstaller().uninstall(candidate, files: selectedFiles, mode: moveToTrash ? .trash : .delete)
-        apply(result, to: candidate)
-        outcome = Self.outcome(for: result, candidate: candidate)
+        let mode: CleanMode = moveToTrash ? .trash : .delete
+        var freedBytes: Int64 = 0
+        var failures: [String] = []
+        for candidate in batch {
+            let result = await Uninstaller().uninstall(candidate, files: files(for: candidate), mode: mode)
+            apply(result, to: candidate)
+            freedBytes += result.freedBytes
+            failures += result.failures
+        }
+        checkedIDs.formIntersection(candidates.map(\.id))
+        outcome = Self.outcome(freedBytes: freedBytes, failures: failures, batch: batch)
     }
 
     private func apply(_ result: UninstallResult, to candidate: UninstallCandidate) {
@@ -134,11 +174,14 @@ final class UninstallerModel {
         selections = selections.mapValues { $0.subtracting(result.removedIDs) }
     }
 
-    private static func outcome(for result: UninstallResult, candidate: UninstallCandidate) -> UninstallOutcome {
-        let freed = "Freed \(ByteFormatter.string(result.freedBytes))."
-        guard !result.failures.isEmpty else { return UninstallOutcome(title: "Removed \(candidate.title)", message: freed) }
-        let shown = result.failures.prefix(5).joined(separator: "\n")
-        let more = result.failures.count > 5 ? "\n…and \(result.failures.count - 5) more." : ""
+    private static func outcome(freedBytes: Int64, failures: [String], batch: [UninstallCandidate]) -> UninstallOutcome {
+        let freed = "Freed \(ByteFormatter.string(freedBytes))."
+        guard !failures.isEmpty else {
+            let removed = batch.count == 1 ? batch[0].title : "\(batch.count) Items"
+            return UninstallOutcome(title: "Removed \(removed)", message: freed)
+        }
+        let shown = failures.prefix(5).joined(separator: "\n")
+        let more = failures.count > 5 ? "\n…and \(failures.count - 5) more." : ""
         return UninstallOutcome(title: "Some Items Weren't Removed", message: "\(freed)\n\n\(shown)\(more)")
     }
 
