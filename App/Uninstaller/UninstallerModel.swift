@@ -110,13 +110,27 @@ final class UninstallerModel {
         selected.map { files(for: $0).contains { $0.id == file.id } } ?? false
     }
 
+    var areAllFilesSelected: Bool {
+        guard let selected, !selected.files.isEmpty else { return false }
+        return files(for: selected).count == selected.files.count
+    }
+
     func toggle(_ file: FoundFile) {
         guard let selected else { return }
         var ids = selections[selected.id] ?? Self.defaultSelection(of: selected)
         if ids.contains(file.id) { ids.remove(file.id) } else { ids.insert(file.id) }
-        selections[selected.id] = ids
+        setSelection(ids, of: selected)
+    }
+
+    func setAllFilesSelected(_ isSelected: Bool) {
+        guard let selected else { return }
+        setSelection(isSelected ? Set(selected.files.map(\.id)) : [], of: selected)
+    }
+
+    private func setSelection(_ ids: Set<FoundFile.ID>, of candidate: UninstallCandidate) {
+        selections[candidate.id] = ids
         // Picking files of an item means it should be part of the next uninstall.
-        if ids.isEmpty { checkedIDs.remove(selected.id) } else { checkedIDs.insert(selected.id) }
+        if ids.isEmpty { checkedIDs.remove(candidate.id) } else { checkedIDs.insert(candidate.id) }
     }
 
     func isChecked(_ candidate: UninstallCandidate) -> Bool {

@@ -115,6 +115,17 @@ struct UninstallerView: View {
                 if let package = candidate.brewPackage {
                     BrewDetail(package: package)
                 } else {
+                    HStack {
+                        Toggle("Select All Files", isOn: Binding(get: { model.areAllFilesSelected }, set: model.setAllFilesSelected))
+                            .toggleStyle(.checkbox)
+                        Spacer()
+                        Text("\(model.files(for: candidate).count) of \(candidate.files.count) selected")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    Divider()
                     List(candidate.files) { file in
                         FoundFileRow(file: file, isSelected: model.isSelected(file), onToggle: { model.toggle(file) })
                     }
