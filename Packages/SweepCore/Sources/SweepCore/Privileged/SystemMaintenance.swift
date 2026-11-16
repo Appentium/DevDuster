@@ -103,12 +103,21 @@ public struct SystemMaintenance: Sendable {
                 continue
             }
             guard FilePath.status(url) != nil else { continue }
+            if HelperAllowlist.isNestedApp(path), !isThirdPartyApp(url) {
+                result.failures.append("\(path): refused because it is not a third-party app bundle")
+                continue
+            }
             if url.deletingLastPathComponent().filePath == Self.launchDaemons, let label = LaunchdPlist(url: url)?.label {
                 _ = Command.run(Self.launchctl, ["bootout", "system/\(label)"])
             }
             remove(url, into: &result)
         }
         return result
+    }
+
+    private func isThirdPartyApp(_ url: URL) -> Bool {
+        guard let id = InstalledApp.infoDictionary(of: url)?["CFBundleIdentifier"] as? String else { return false }
+        return !id.lowercased().hasPrefix("com.apple.")
     }
 
     private func cacheNames() -> [String] {

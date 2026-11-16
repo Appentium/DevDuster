@@ -7,6 +7,7 @@ import Testing
         "/Applications/Foo.app", "/Applications/Utilities/Foo.app", "/Library/LaunchDaemons/com.foo.daemon.plist",
         "/Library/PrivilegedHelperTools/com.foo.helper", "/private/var/db/receipts/com.foo.pkg.bom",
         "/Users/me/Library/Containers/com.foo.app", "/Users/me/Library/Application Support/Foo",
+        "/Library/Application Support/Adobe/Common/ADS/Adobe Desktop Service.app", "/Applications/Adobe Photoshop/Photoshop.app",
     ])
     func helperAllowsAppFilesInKnownFolders(path: String) {
         #expect(HelperAllowlist.isUninstallPath(path))
@@ -17,6 +18,8 @@ import Testing
         "/Library/LaunchDaemons/com.appentium.sweep.helper.plist", "/Library/LaunchDaemons/../Foo", "/Library/Foo",
         "/System/Library/LaunchDaemons/x.plist", "/Library/Application Support/Foo/inner", "/Users/me/Documents/file",
         "/Users/me/Library/Containers/.hidden", "relative/Foo.app", "/usr/bin/foo",
+        "/Library/Application Support/Vendor/.hidden/Tool.app", "/Library/Application Support/Vendor/Tool/data",
+        "/Library/Application Support/Vendor/../../../System/Foo.app", "/Library/Preferences/Vendor/Tool.app",
     ])
     func helperRefusesEverythingElse(path: String) {
         #expect(!HelperAllowlist.isUninstallPath(path))

@@ -64,6 +64,12 @@ struct UninstallerView: View {
                 note: model.confirmationNote
             )
         }
+        .alert("Sweep's Helper Needs Approval", isPresented: $model.needsHelperApproval) {
+            Button("Open Login Items", action: model.approveHelper)
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Some checked files are owned by the system. Turn on Sweep in System Settings → General → Login Items & Extensions → Allow in the Background, then uninstall again.")
+        }
         .alert(item: $model.outcome) { outcome in
             Alert(title: Text(outcome.title), message: Text(outcome.message))
         }

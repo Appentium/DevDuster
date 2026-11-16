@@ -11,6 +11,7 @@ struct UninstallOutcome: Identifiable {
 @MainActor
 @Observable
 final class UninstallerModel {
+    private let helperInstaller = HelperInstaller()
     private var scanTask: Task<Void, Never>?
     private var selections: [UninstallCandidate.ID: Set<FoundFile.ID>] = [:]
 
@@ -25,6 +26,7 @@ final class UninstallerModel {
     var checkedIDs: Set<UninstallCandidate.ID> = []
     var moveToTrash = true
     var isConfirming = false
+    var needsHelperApproval = false
     var outcome: UninstallOutcome?
 
     var visibleCandidates: [UninstallCandidate] {
@@ -131,7 +133,17 @@ final class UninstallerModel {
     }
 
     func requestUninstall() {
-        isConfirming = true
+        let needsHelper = checkedCandidates.flatMap(files(for:)).contains(where: \.needsAdmin)
+        if needsHelper && helperInstaller.status != .enabled {
+            needsHelperApproval = true
+        } else {
+            isConfirming = true
+        }
+    }
+
+    func approveHelper() {
+        // Registering an already-registered helper is how macOS re-asks for the Login Items approval.
+        if (try? helperInstaller.register()) != .enabled { helperInstaller.openLoginItemsSettings() }
     }
 
     func uninstallChecked() async {

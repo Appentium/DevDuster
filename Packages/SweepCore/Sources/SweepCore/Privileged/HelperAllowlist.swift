@@ -3,6 +3,7 @@ import Foundation
 public enum HelperAllowlist {
     static let archiveMinimumAge: TimeInterval = 86_400
     private static let applicationFolders: Set<String> = ["/Applications", "/Applications/Utilities"]
+    private static let nestedAppRoots = ["/Applications/", "/Library/Application Support/"]
     private static let systemUninstallFolders: Set<String> = [
         "/Library/Application Support", "/Library/Caches", "/Library/Preferences", "/Library/Logs", "/Library/LaunchAgents",
         "/Library/LaunchDaemons", "/Library/PrivilegedHelperTools", "/Library/Internet Plug-Ins", "/Library/QuickLook",
@@ -61,10 +62,17 @@ public enum HelperAllowlist {
         guard path.hasPrefix("/"), url.standardized.filePath == path, isSingleComponent(name),
               !lowered.hasPrefix("com.apple."), !lowered.contains("com.appentium.sweep"), lowered != "sweep.app" else { return false }
         if applicationFolders.contains(parent) { return name.hasSuffix(".app") }
+        if isNestedApp(path) { return true }
         if systemUninstallFolders.contains(parent) { return true }
         let components = parent.split(separator: "/").map(String.init)
         guard components.count >= 4, components[0] == "Users", isSingleComponent(components[1]), components[2] == "Library" else { return false }
         return userUninstallFolders.contains(components.dropFirst(3).joined(separator: "/"))
+    }
+
+    static func isNestedApp(_ path: String) -> Bool {
+        // Hidden helper apps sit deep inside vendor folders, so only an app bundle may be that far down.
+        path.hasSuffix(".app") && nestedAppRoots.contains(where: path.hasPrefix)
+            && path.split(separator: "/").allSatisfy { isSingleComponent(String($0)) }
     }
 
     public static func isTrashVolume(_ name: String, mounted: [String]) -> Bool {
