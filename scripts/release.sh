@@ -25,8 +25,8 @@ for attempt in {1..360}; do
   if xcodebuild -exportNotarizedApp -archivePath "$archive" -exportPath "$out/notarized" > "$out/notarize.log" 2>&1; then
     break
   fi
-  # Anything other than "still processing" is a rejection or a real error.
-  grep -q "is processing" "$out/notarize.log" || { tail -5 "$out/notarize.log"; exit 1; }
+  # Still processing or a network timeout means try again; anything else is a rejection or a real error.
+  grep -qE "is processing|timed out|NSURLErrorDomain" "$out/notarize.log" || { tail -5 "$out/notarize.log"; exit 1; }
   sleep 30
 done
 
