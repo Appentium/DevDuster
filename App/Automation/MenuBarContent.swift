@@ -1,4 +1,4 @@
-import SweepCore
+import DusterCore
 import SwiftUI
 
 struct MenuBarLabel: View {
@@ -6,7 +6,7 @@ struct MenuBarLabel: View {
 
     var body: some View {
         Label(
-            model.fullestVolume.map { ByteFormatter.string($0.availableBytes) } ?? "Sweep",
+            model.fullestVolume.map { ByteFormatter.string($0.availableBytes) } ?? "DevDuster",
             systemImage: "internaldrive"
         )
         .task { model.start() }
@@ -23,10 +23,10 @@ struct MenuBarContent: View {
             Text("\(volume.name): \(ByteFormatter.string(volume.availableBytes)) free of \(ByteFormatter.string(volume.totalBytes))")
         }
         Divider()
-        Button("Open Sweep", action: onOpen)
+        Button("Open DevDuster", action: onOpen)
         Button("Scan Now", action: onScan)
         Divider()
-        Button("Quit Sweep") { NSApplication.shared.terminate(nil) }
+        Button("Quit DevDuster") { NSApplication.shared.terminate(nil) }
             .keyboardShortcut("q")
     }
 }

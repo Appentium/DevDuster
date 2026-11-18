@@ -1,4 +1,4 @@
-import SweepCore
+import DusterCore
 
 extension ScanReport {
     var groups: [(rule: Rule, items: [ScanItem])] {

@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor
 @Observable
@@ -23,7 +23,7 @@ final class FlutterProjectsModel {
     }
 
     private let catalog = RuleCatalog()
-    private let settings = SweepSettings()
+    private let settings = DusterSettings()
     private var scanTask: Task<Void, Never>?
     private var rawProjects: [ProjectEntry] = []
 

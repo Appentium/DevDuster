@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor
 @Observable
@@ -9,7 +9,7 @@ final class VolumeMonitorModel {
     private static let refreshesPerAlertCheck = 5
 
     private let service = VolumeService()
-    private let settings = SweepSettings()
+    private let settings = DusterSettings()
     private let notifier = LowSpaceNotifier()
     private var alertMonitor = LowSpaceMonitor()
     private var loop: Task<Void, Never>?

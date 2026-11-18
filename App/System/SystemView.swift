@@ -1,5 +1,5 @@
 import AppKit
-import SweepCore
+import DusterCore
 import SwiftUI
 
 struct SystemView: View {
@@ -61,7 +61,7 @@ private struct HelperStatusRow: View {
         case .enabled: "Installed and enabled."
         case .requiresApproval: "Waiting for approval in System Settings → General → Login Items & Extensions."
         case .notRegistered: "Not installed. Install it to clean snapshots, system caches, logs and root trash."
-        case .notFound: "The helper was not found in this build of Sweep."
+        case .notFound: "The helper was not found in this build of DevDuster."
         }
     }
 

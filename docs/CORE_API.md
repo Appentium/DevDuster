@@ -1,6 +1,6 @@
-# SweepCore API
+# DusterCore API
 
-Everything the app, CLI and helper need from `import SweepCore`. All types are `Sendable`; the
+Everything the app, CLI and helper need from `import DusterCore`. All types are `Sendable`; the
 long calls are `async` and run off the main actor, so call them from a `Task` in a view model.
 
 ## Rules
@@ -17,7 +17,7 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 
 | Call | Returns |
 |---|---|
-| `SweepScanner(catalog:volumes:processes:)` | `volumes` and `processes` default to the real machine |
+| `DusterScanner(catalog:volumes:processes:)` | `volumes` and `processes` default to the real machine |
 | `ProcessProbe(isRunning:runningApps:)` | `.system` reads `ps` and `NSWorkspace`; tests inject fixed answers. `RunningApp` is `bundleIdentifier` + `name` |
 | `scanner.scan(_ options) -> AsyncStream<ScanEvent>` | `.progress(ScanPhase, path:)`, `.item(ScanItem)` as each is measured, then `.finished(ScanReport)`. Cancelling the consuming task stops the scan |
 | `await scanner.run(_ options) -> ScanReport` | Same scan, final report only |
@@ -33,7 +33,7 @@ long calls are `async` and run off the main actor, so call them from a `Task` in
 
 | Call | Returns |
 |---|---|
-| `Cleaner(catalog:log:)` | `log` defaults to `~/Library/Logs/Sweep/clean.log` |
+| `Cleaner(catalog:log:)` | `log` defaults to `~/Library/Logs/DevDuster/clean.log` |
 | `await cleaner.clean(items:mode:) -> [CleanResult]` | `mode` is `.trash` (default) or `.delete`. Pass `ScanItem`s from a scan, or `ScanItem.userSelected(url:bytes:)` for user-picked files |
 | `CleanResult` | `item`, `error: CleanError?` (`nil` = removed), `trashedURL` (where it went, for Restore) |
 | `CleanError` | `.refused(DenyGuard.Refusal)`, `.dockerNotRunning`, `.failed(message)` |
@@ -69,7 +69,7 @@ The Docker item (`rule.target == .dockerPrune`) is never deleted as files: clean
 ## Example
 
 ```swift
-import SweepCore
+import DusterCore
 
 @MainActor @Observable final class CleanerModel {
     private let catalog = RuleCatalog()
@@ -79,7 +79,7 @@ import SweepCore
     func scan(tiers: Set<Tier>) async {
         scanning = true
         items = []
-        for await event in SweepScanner(catalog: catalog).scan(ScanOptions(tiers: tiers)) {
+        for await event in DusterScanner(catalog: catalog).scan(ScanOptions(tiers: tiers)) {
             switch event {
             case .item(let item): items.append(item)
             case .finished(let report): items = report.items

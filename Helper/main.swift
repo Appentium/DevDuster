@@ -1,5 +1,5 @@
 import Foundation
-import SweepCore
+import DusterCore
 
 let delegate = HelperListenerDelegate()
 let listener = NSXPCListener(machServiceName: HelperIdentity.machServiceName)

@@ -1,5 +1,5 @@
 import CoreGraphics
-import SweepCore
+import DusterCore
 
 struct TreemapTile: Identifiable {
     let node: DiskNode

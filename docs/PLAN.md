@@ -1,4 +1,4 @@
-# Sweep: personal Mac cleaner (SwiftUI)
+# DevDuster: personal Mac cleaner (SwiftUI)
 
 ## Context
 Both disks are almost full. **Internal: 3.2 GB free of 228 GB. Storage (external APFS over USB): 345 MB free of 112 GB.** Most of it is dev data that can be regenerated:
@@ -28,30 +28,30 @@ Xcode and the agent sessions can't build with 3 GB free. Claude shows the exact 
 Target: at least 25 GB free on internal and at least 15 GB on Storage.
 
 ## Architecture
-Repo: `/Volumes/Storage/Projects/appentium/Projects/cleanmymac`. `git init` first, and every work package gets its own branch or worktree. XcodeGen (`brew install xcodegen`) generates the project from `project.yml`, so agents never edit `.pbxproj`. Bundle prefix `com.appentium.sweep`, deployment target macOS 27, Swift 6 strict concurrency.
+Repo: `/Volumes/Storage/Projects/appentium/Projects/cleanmymac`. `git init` first, and every work package gets its own branch or worktree. XcodeGen (`brew install xcodegen`) generates the project from `project.yml`, so agents never edit `.pbxproj`. Bundle prefix `com.appentium.devduster`, deployment target macOS 27, Swift 6 strict concurrency.
 
 ```
 project.yml
-Packages/SweepCore/            # local SwiftPM package: all logic, no UI
-  Sources/SweepCore/
+Packages/DusterCore/            # local SwiftPM package: all logic, no UI
+  Sources/DusterCore/
     Scan/        Scanner (fts / getattrlistbulk, parallel, prunes matched dirs), SizeCalculator (allocated size, inode dedupe)
     Rules/       Rule model, RuleCatalog (built-in rules), ProjectArtifactMatcher (marker-file logic)
     Clean/       Cleaner (trash vs delete), DenyGuard (hard never-delete list), CleanLog
     Volumes/     VolumeService (internal + external, read-only/NTFS detection, per-volume .Trashes size + empty)
     Explore/     DiskMapBuilder (tree of sizes), LargeFileFinder (size/age filters)
     Privileged/  HelperClient (XPC protocol shared with the helper)
-  Tests/SweepCoreTests/        # temp-dir fixtures, never touches real paths
+  Tests/DusterCoreTests/        # temp-dir fixtures, never touches real paths
 App/      SwiftUI app: Dashboard, Cleaner, DiskMap (squarified treemap + drill-down), Finder, Settings, FDA onboarding, MenuBarExtra
 Helper/   privileged daemon via SMAppService + NSXPCConnection; checks the caller's code signature; own path allowlist
-CLI/      `sweep` (swift-argument-parser): scan / clean --tier safe; used by the scheduled LaunchAgent
+CLI/      `duster` (swift-argument-parser): scan / clean --tier safe; used by the scheduled LaunchAgent
 ```
 
 ### Rule model (the safety core)
 Each rule has an `id`, `tier` (safe / review / caution), a root path or project marker, a regenerate note, an optional `minAgeDays`, and an optional guard (for example: skip `~/.gradle/caches` while a Gradle daemon is running, or run `gradle --stop` first). Docker is never deleted as files; only `docker system prune` is used.
 - Project artifacts are deleted only when the matching marker sits next to them. `build/` and `.dart_tool/` need `pubspec.yaml`; `.gradle/` and `build/` need `build.gradle(.kts)`; `Pods/` needs `Podfile`; `node_modules/` needs `package.json`. The scanner works on all mounted volumes and skips projects modified in the last N days (a setting, default 14).
-- **Flutter Projects section** (its own sidebar entry and its own CLI command, `sweep flutter`). It lists every Flutter project found on all volumes, meaning any folder with a `pubspec.yaml` that has a `flutter:` dependency. For each project it shows the path, last activity, and the sizes of `.dart_tool/`, `build/` and optionally `ios/Pods`, `ios/.symlinks` and `android/.gradle`. Checkboxes work per project and per folder, with Select all and Select stale. It reuses ProjectArtifactMatcher plus a `FlutterProjectScanner` in `Rules/`, and goes through the same Cleaner and DenyGuard as everything else.
+- **Flutter Projects section** (its own sidebar entry and its own CLI command, `duster flutter`). It lists every Flutter project found on all volumes, meaning any folder with a `pubspec.yaml` that has a `flutter:` dependency. For each project it shows the path, last activity, and the sizes of `.dart_tool/`, `build/` and optionally `ios/Pods`, `ios/.symlinks` and `android/.gradle`. Checkboxes work per project and per folder, with Select all and Select stale. It reuses ProjectArtifactMatcher plus a `FlutterProjectScanner` in `Rules/`, and goes through the same Cleaner and DenyGuard as everything else.
 - **DenyGuard** runs on every path in `Cleaner` as the last check. It refuses anything outside a rule's root, and it refuses Keychains, `Mobile Documents`, Photos/Messages/Mail libraries, `/System`, the volume root, and the user's home itself, even when the UI asks for it.
-- The user always sees a preview before anything is removed. Trash is the default; instant delete is a per-run toggle. Every removal goes to `~/Library/Logs/Sweep/clean.log`.
+- The user always sees a preview before anything is removed. Trash is the default; instant delete is a per-run toggle. Every removal goes to `~/Library/Logs/DevDuster/clean.log`.
 - Items trashed on an external volume land in `/Volumes/X/.Trashes/501` and free nothing until that trash is emptied, so the Dashboard shows each volume's trash size with an Empty button.
 
 ### Root helper (SMAppService daemon)
@@ -60,7 +60,7 @@ It runs a fixed set of operations only: delete local Time Machine snapshots, cle
 ### Automation (each one toggleable in Settings)
 - Menu bar free-space meter for each volume.
 - Low-space notification below a threshold (default 20 GB internal, 10 GB external).
-- Scheduled "clean Safe tier" through a LaunchAgent that runs the `sweep` CLI (off by default).
+- Scheduled "clean Safe tier" through a LaunchAgent that runs the `duster` CLI (off by default).
 - Also in Settings: excluded paths and the stale-project age.
 
 ## Work packages and who builds them
@@ -69,17 +69,17 @@ Claude starts each session, reviews every diff (coding rules from GEMINI.md, del
 | WP | Scope | Builder | Depends on |
 |---|---|---|---|
 | 0 | Scaffold: git, `project.yml`, 4 targets, signing with team 4GAP4FSZZS, `make build` / `make test` scripts | Claude Code **Sonnet** | Step 0 |
-| 1 | SweepCore: Scanner, SizeCalculator, Rules + catalog, ProjectArtifactMatcher, Cleaner + DenyGuard + log, VolumeService; full unit tests | Claude Code **Opus** (deletion-critical) | WP0 |
+| 1 | DusterCore: Scanner, SizeCalculator, Rules + catalog, ProjectArtifactMatcher, Cleaner + DenyGuard + log, VolumeService; full unit tests | Claude Code **Opus** (deletion-critical) | WP0 |
 | 2 | App shell, Dashboard, Cleaner UI (preview, tier groups, Trash toggle), FDA onboarding | Antigravity **gemini-4-hydrogen-high** | WP1 API |
 | 3 | DiskMapBuilder + treemap view, LargeFileFinder + view (reveal in Finder, trash) | Antigravity **gemini-4-hydrogen-high** | WP1 API |
 | 4 | Privileged helper, XPC protocol, SMAppService registration, caller-signature check | Claude Code **Opus** | WP1 |
-| 5 | Settings, MenuBarExtra, notifications, `sweep` CLI, LaunchAgent install/remove | Claude Code **Sonnet** | WP2 |
+| 5 | Settings, MenuBarExtra, notifications, `duster` CLI, LaunchAgent install/remove | Claude Code **Sonnet** | WP2 |
 
 WP2, WP3 and WP4 run in parallel in separate worktrees once WP1 is merged; their files don't overlap. Claude merges each branch only after review passes.
 
 ## Verification
-- **Gates for every WP:** `make build` (xcodebuild, warnings treated as errors in SweepCore) and `make test` both pass. Then Claude reads the diff.
-- **SweepCore tests** build a fake home and fake volume in a temp dir and check four things: marker-based matching (a `build/` with no marker is never matched); DenyGuard refusing every protected path; trash vs delete; and that hard links are counted once.
-- **Dry run on the real disks:** run `sweep scan` on `~` and `/Volumes/Storage` and compare its totals with the `du` figures above, within about 5%.
+- **Gates for every WP:** `make build` (xcodebuild, warnings treated as errors in DusterCore) and `make test` both pass. Then Claude reads the diff.
+- **DusterCore tests** build a fake home and fake volume in a temp dir and check four things: marker-based matching (a `build/` with no marker is never matched); DenyGuard refusing every protected path; trash vs delete; and that hard links are counted once.
+- **Dry run on the real disks:** run `duster scan` on `~` and `/Volumes/Storage` and compare its totals with the `du` figures above, within about 5%.
 - **Manual app pass:** Claude launches the app and screenshots the Dashboard, Cleaner preview, Disk Map and Finder. Then it does one real clean of the Safe tier to Trash, checks the files are in Trash and the log is written, and restores one item to prove recovery works.
 - **Helper:** register it, approve it in Login Items, delete one local snapshot, and confirm with `tmutil listlocalsnapshots /`.

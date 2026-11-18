@@ -1,12 +1,12 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor
 @Observable
 final class SettingsModel {
-    private let settings = SweepSettings()
-    private let cliURL = Bundle.main.bundleURL.appending(path: "Contents/MacOS/sweep")
+    private let settings = DusterSettings()
+    private let cliURL = Bundle.main.bundleURL.appending(path: "Contents/MacOS/duster")
     private var scheduleTask: Task<Void, Never>?
 
     private(set) var scheduleError: String?
@@ -46,7 +46,7 @@ final class SettingsModel {
         excludedPaths.removeAll { $0 == path }
     }
 
-    private func updateSchedule(_ change: (SweepSettings) -> Void) {
+    private func updateSchedule(_ change: (DusterSettings) -> Void) {
         change(settings)
         applySchedule()
     }

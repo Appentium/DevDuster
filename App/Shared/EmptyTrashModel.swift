@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor
 @Observable

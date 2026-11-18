@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import SweepCore
+import DusterCore
 
 struct SystemCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -9,7 +9,7 @@ struct SystemCommand: AsyncParsableCommand {
         subcommands: [Status.self, Install.self, Uninstall.self, Snapshots.self, Caches.self, Logs.self, Trash.self]
     )
 
-    static let approvalHint = "Approve it in System Settings → General → Login Items & Extensions → Allow in the Background → Sweep."
+    static let approvalHint = "Approve it in System Settings → General → Login Items & Extensions → Allow in the Background → DevDuster."
 
     struct Status: AsyncParsableCommand {
         static let configuration = CommandConfiguration(abstract: "Show whether the helper is installed and reachable.")
@@ -20,7 +20,7 @@ struct SystemCommand: AsyncParsableCommand {
             switch status {
             case .enabled: print("Helper version: \(try await HelperClient().version())")
             case .requiresApproval: print(SystemCommand.approvalHint)
-            case .notRegistered, .notFound: print("Run `sweep system install`.")
+            case .notRegistered, .notFound: print("Run `duster system install`.")
             }
         }
     }

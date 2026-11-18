@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import SweepCore
+import DusterCore
 
 struct CleanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -23,7 +23,7 @@ struct CleanCommand: AsyncParsableCommand {
 
     func run() async throws {
         let catalog = RuleCatalog()
-        let report = await SweepScanner(catalog: catalog).run(SweepSettings().scanOptions(tiers: [tier]))
+        let report = await DusterScanner(catalog: catalog).run(DusterSettings().scanOptions(tiers: [tier]))
         print(report.text)
         guard !report.items.isEmpty else { return }
 

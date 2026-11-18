@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 enum SystemCategory: CaseIterable, Identifiable {
     case snapshots, caches, logs, trash

@@ -1,5 +1,5 @@
 import Foundation
-import SweepCore
+import DusterCore
 import UserNotifications
 
 @MainActor
@@ -19,7 +19,7 @@ final class LowSpaceNotifier: NSObject, UNUserNotificationCenterDelegate {
     func post(_ volume: Volume) async {
         let content = UNMutableNotificationContent()
         content.title = "Low disk space on \(volume.name)"
-        content.body = "\(ByteFormatter.string(volume.availableBytes)) free of \(ByteFormatter.string(volume.totalBytes)). Open Sweep to clean up."
+        content.body = "\(ByteFormatter.string(volume.availableBytes)) free of \(ByteFormatter.string(volume.totalBytes)). Open DevDuster to clean up."
         content.sound = .default
         try? await center.add(UNNotificationRequest(identifier: "lowSpace.\(volume.url.path(percentEncoded: false))", content: content, trigger: nil))
     }

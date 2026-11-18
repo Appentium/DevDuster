@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 struct CleanIssue: Identifiable, Hashable {
     let id: String

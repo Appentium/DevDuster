@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor
 @Observable
@@ -32,7 +32,7 @@ final class CleanerModel {
 
     let grouping: Grouping
     private let catalog: RuleCatalog
-    private let settings = SweepSettings()
+    private let settings = DusterSettings()
     private var scanTask: Task<Void, Never>?
     private var manuallyDeselectedIDs: Set<ScanItem.ID> = []
 
@@ -77,7 +77,7 @@ final class CleanerModel {
         let catalog = self.catalog
         let options = settings.scanOptions()
         scanTask = Task { [weak self] in
-            for await event in SweepScanner(catalog: catalog).scan(options) {
+            for await event in DusterScanner(catalog: catalog).scan(options) {
                 guard let self, !Task.isCancelled else { break }
                 self.handle(event)
             }

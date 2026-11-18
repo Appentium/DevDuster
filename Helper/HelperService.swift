@@ -1,6 +1,6 @@
 import Foundation
 import Synchronization
-import SweepCore
+import DusterCore
 
 final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
     private let openConnections = OpenConnections()
@@ -8,7 +8,7 @@ final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
     func listener(_ listener: NSXPCListener, shouldAcceptNewConnection connection: NSXPCConnection) -> Bool {
         // Messages from a caller that fails this requirement are dropped and the connection invalidated.
         connection.setCodeSigningRequirement(HelperIdentity.clientRequirement)
-        connection.exportedInterface = NSXPCInterface(with: SweepHelperProtocol.self)
+        connection.exportedInterface = NSXPCInterface(with: DusterHelperProtocol.self)
         connection.exportedObject = HelperService()
         openConnections.opened()
         connection.invalidationHandler = { [openConnections] in openConnections.closed() }
@@ -34,7 +34,7 @@ final class OpenConnections: Sendable {
     }
 }
 
-final class HelperService: NSObject, SweepHelperProtocol {
+final class HelperService: NSObject, DusterHelperProtocol {
     private let maintenance = SystemMaintenance()
 
     func version(reply: @escaping @Sendable (String) -> Void) {

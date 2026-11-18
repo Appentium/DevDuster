@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 struct UninstallOutcome: Identifiable {
     let id = UUID()
@@ -68,7 +68,7 @@ final class UninstallerModel {
         }
         let adminCount = checkedCandidates.flatMap(files(for:)).filter(\.needsAdmin).count
         guard adminCount > 0 else { return nil }
-        return "\(adminCount) items need administrator rights and are deleted permanently by Sweep's helper, even with Move to Trash on."
+        return "\(adminCount) items need administrator rights and are deleted permanently by DevDuster's helper, even with Move to Trash on."
     }
 
     func count(of kind: UninstallCandidate.Kind) -> Int {

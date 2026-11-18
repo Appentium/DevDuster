@@ -12,7 +12,7 @@ struct FullDiskAccessSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Full Disk Access Required")
                         .font(.title3.bold())
-                    Text("Sweep needs Full Disk Access to scan and clean protected caches, logs, and trash across your Mac.")
+                    Text("DevDuster needs Full Disk Access to scan and clean protected caches, logs, and trash across your Mac.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -22,8 +22,8 @@ struct FullDiskAccessSheet: View {
                 Text("How to enable:")
                     .font(.subheadline.weight(.semibold))
                 Text("1. Click Open System Settings below.")
-                Text("2. Turn on Sweep in Privacy & Security → Full Disk Access.")
-                Text("3. Return to Sweep — access is checked automatically.")
+                Text("2. Turn on DevDuster in Privacy & Security → Full Disk Access.")
+                Text("3. Return to DevDuster — access is checked automatically.")
             }
             .font(.callout)
             .foregroundStyle(.secondary)

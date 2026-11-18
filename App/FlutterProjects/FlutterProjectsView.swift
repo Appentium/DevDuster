@@ -1,4 +1,4 @@
-import SweepCore
+import DusterCore
 import SwiftUI
 
 struct FlutterProjectsView: View {

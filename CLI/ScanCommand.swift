@@ -1,6 +1,6 @@
 import ArgumentParser
 import Foundation
-import SweepCore
+import DusterCore
 
 struct ScanCommand: AsyncParsableCommand {
     static let configuration = CommandConfiguration(
@@ -18,8 +18,8 @@ struct ScanCommand: AsyncParsableCommand {
     var path: [URL] = []
 
     func run() async throws {
-        let options = SweepSettings().scanOptions(tiers: tier.isEmpty ? Set(Tier.allCases) : Set(tier), scope: path.isEmpty ? nil : path)
-        let report = await SweepScanner(catalog: RuleCatalog()).run(options)
+        let options = DusterSettings().scanOptions(tiers: tier.isEmpty ? Set(Tier.allCases) : Set(tier), scope: path.isEmpty ? nil : path)
+        let report = await DusterScanner(catalog: RuleCatalog()).run(options)
         print(json ? try jsonText(report) : report.text)
     }
 

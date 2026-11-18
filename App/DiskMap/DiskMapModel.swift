@@ -1,7 +1,7 @@
 import AppKit
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor @Observable final class DiskMapModel {
     enum RootSource: Hashable, Identifiable {

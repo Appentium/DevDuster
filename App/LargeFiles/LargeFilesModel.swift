@@ -1,6 +1,6 @@
 import Foundation
 import Observation
-import SweepCore
+import DusterCore
 
 @MainActor @Observable final class LargeFilesModel {
     enum MinSizeFilter: Int64, CaseIterable, Identifiable {
