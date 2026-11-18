@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DevDuster: Mac cleaner for developers</title>
+<meta name="description" content="DevDuster finds the gigabytes Xcode, Android Studio, Flutter, Gradle, CocoaPods and npm leave behind on your Mac, and removes them safely. Free for macOS.">
+<meta property="og:title" content="DevDuster: Mac cleaner for developers">
+<meta property="og:description" content="Reclaim the gigabytes your dev tools leave behind. Native and free.">
+<meta property="og:image" content="https://devduster.com/screenshots/cleaner.png">
+<meta property="og:url" content="https://devduster.com/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<style>
+  :root {
+    --bg: #0f1012;
+    --surface: #17181b;
+    --border: #26282d;
+    --text: #ececef;
+    --muted: #9b9ea6;
+    --accent: #0a84ff;
+    --safe: #30d158;
+    --review: #ff9f0a;
+    --caution: #ff453a;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 17px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+  nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 0; }
+  nav .brand { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; }
+  nav .brand img { width: 28px; height: 28px; }
+  nav .links { display: flex; gap: 22px; font-size: 15px; }
+  nav .links a { color: var(--muted); }
+  .hero { text-align: center; padding: 56px 0 40px; }
+  .hero img.icon { width: 112px; height: 112px; }
+  h1 { font-size: clamp(36px, 6vw, 56px); line-height: 1.08; letter-spacing: -0.02em; margin: 18px 0 14px; }
+  .lead { font-size: clamp(18px, 2.4vw, 21px); color: var(--muted); max-width: 680px; margin: 0 auto 30px; }
+  .buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn { display: inline-block; padding: 12px 22px; border-radius: 10px; font-weight: 600; font-size: 16px; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.secondary { border: 1px solid var(--border); color: var(--text); }
+  .btn:hover { text-decoration: none; filter: brightness(1.1); }
+  .fineprint { color: var(--muted); font-size: 14px; margin-top: 14px; }
+  .shot { margin: 48px auto 0; max-width: 960px; }
+  .shot img { width: 100%; height: auto; border-radius: 12px; border: 1px solid var(--border); box-shadow: 0 30px 80px rgba(0,0,0,.55); display: block; }
+  section { padding: 72px 0 0; }
+  h2 { font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.01em; margin: 0 0 10px; text-align: center; }
+  .sub { color: var(--muted); text-align: center; max-width: 640px; margin: 0 auto 36px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 22px; }
+  .card h3 { margin: 0 0 6px; font-size: 18px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15.5px; }
+  .tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .tier { border-radius: 14px; padding: 20px; background: var(--surface); border: 1px solid var(--border); }
+  .tag { display: inline-block; font-size: 13px; font-weight: 600; padding: 2px 10px; border-radius: 999px; margin-bottom: 8px; }
+  .tag.safe { color: var(--safe); background: rgba(48,209,88,.14); }
+  .tag.review { color: var(--review); background: rgba(255,159,10,.14); }
+  .tag.caution { color: var(--caution); background: rgba(255,69,58,.14); }
+  .tier p { margin: 0; color: var(--muted); font-size: 15px; }
+  .gallery { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 20px; }
+  .gallery figure { margin: 0; }
+  .gallery img { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--border); display: block; }
+  .gallery figcaption { color: var(--muted); font-size: 14px; margin-top: 8px; text-align: center; }
+  ol.steps { max-width: 640px; margin: 0 auto; padding-left: 22px; color: var(--muted); }
+  ol.steps li { margin-bottom: 10px; }
+  ol.steps strong { color: var(--text); }
+  pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; overflow-x: auto; max-width: 640px; margin: 20px auto 0; font: 14px/1.5 ui-monospace, "SF Mono", Menlo, monospace; color: var(--text); }
+  footer { margin-top: 88px; padding: 28px 0 40px; border-top: 1px solid var(--border); color: var(--muted); font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+  @media (max-width: 520px) {
+    nav .links { display: none; }
+    .gallery { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav>
+    <a class="brand" href="#"><img src="icon.png" alt="">DevDuster</a>
+    <div class="links">
+      <a href="#features">Features</a>
+      <a href="#safety">Safety</a>
+      <a href="#install">Install</a>
+      <a href="https://github.com/Appentium/DevDuster">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <img class="icon" src="icon.png" alt="DevDuster app icon">
+    <h1>Get your disk back<br>from your dev tools.</h1>
+    <p class="lead">DevDuster finds the gigabytes Xcode, Android Studio, Flutter, Gradle, CocoaPods and npm leave behind, tells you what rebuilds each one, and removes them safely.</p>
+    <div class="buttons">
+      <a class="btn primary" href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster.zip">Download for Mac</a>
+      <a class="btn secondary" href="https://github.com/Appentium/DevDuster">View on GitHub</a>
+    </div>
+    <p class="fineprint">Free · Source on GitHub · macOS 27 or later · Apple silicon · Signed and notarized</p>
+    <div class="shot"><img src="screenshots/cleaner.png" alt="DevDuster Cleaner with Xcode DerivedData labelled by project" width="1065" height="675"></div>
+  </header>
+
+  <section id="features">
+    <h2>Built for how developers fill a disk</h2>
+    <p class="sub">General cleaners skip developer data or treat it as a black box. DevDuster knows what each folder is and what happens when it's gone.</p>
+    <div class="grid">
+      <div class="card"><h3>Xcode &amp; Android</h3><p>DerivedData labelled with the project it belongs to, simulators and runtimes removed through simctl, old NDKs, build tools, system images and AVDs.</p></div>
+      <div class="card"><h3>Flutter Projects</h3><p>Every Flutter project on every volume, with build, .dart_tool, Pods and Gradle folders, last activity and one-click Select stale.</p></div>
+      <div class="card"><h3>Project artifacts</h3><p>node_modules, Pods, Gradle build and Cargo target, removed only when the matching project file sits next to them.</p></div>
+      <div class="card"><h3>Caches &amp; logs</h3><p>40+ rules for SwiftPM, CocoaPods, Homebrew, npm, Yarn, pip, Gradle, Dart pub and Docker.</p></div>
+      <div class="card"><h3>Uninstaller</h3><p>Removes apps with their leftovers, background items and Homebrew packages, and finds leftovers of apps already gone.</p></div>
+      <div class="card"><h3>Disk Map &amp; Large Files</h3><p>A treemap of any folder or volume, and a finder for large, old files, across internal and external disks.</p></div>
+    </div>
+  </section>
+
+  <section id="safety">
+    <h2>Every item tells you its risk</h2>
+    <p class="sub">You always see a preview first. Move to Trash is on by default, and a hard deny list protects Keychains, iCloud Drive, Photos, Mail and your system.</p>
+    <div class="tiers">
+      <div class="tier"><span class="tag safe">Safe</span><p>Rebuilt automatically on the next build or launch, like DerivedData and package caches.</p></div>
+      <div class="tier"><span class="tag review">Review</span><p>Downloaded again when needed, like old Gradle caches, DeviceSupport and the pub cache.</p></div>
+      <div class="tier"><span class="tag caution">Caution</span><p>You pick each one, like emulators, SDK versions, simulator runtimes and device backups.</p></div>
+    </div>
+  </section>
+
+  <section id="screenshots">
+    <h2>A closer look</h2>
+    <p class="sub">Native SwiftUI. No account, no ads, no tracking.</p>
+    <div class="gallery">
+      <figure><img src="screenshots/xcode-android.png" alt="Xcode and Android section" loading="lazy" width="1065" height="675"><figcaption>Xcode &amp; Android</figcaption></figure>
+      <figure><img src="screenshots/flutter-projects.png" alt="Flutter Projects section" loading="lazy" width="1065" height="675"><figcaption>Flutter Projects</figcaption></figure>
+      <figure><img src="screenshots/uninstaller.png" alt="Uninstaller section" loading="lazy" width="1065" height="675"><figcaption>Uninstaller</figcaption></figure>
+      <figure><img src="screenshots/disk-map.png" alt="Disk Map treemap" loading="lazy" width="1065" height="675"><figcaption>Disk Map</figcaption></figure>
+    </div>
+  </section>
+
+  <section id="install">
+    <h2>Install</h2>
+    <ol class="steps">
+      <li><strong>Download</strong> DevDuster.zip, unzip it and move DevDuster.app to Applications.</li>
+      <li><strong>Grant Full Disk Access</strong> when asked, so it can measure caches in protected folders.</li>
+      <li><strong>Optional:</strong> allow the helper in System Settings → General → Login Items to use the System section.</li>
+    </ol>
+    <pre>/Applications/DevDuster.app/Contents/MacOS/duster scan</pre>
+    <p class="sub" style="margin-top:12px">The <code>duster</code> command-line tool ships inside the app.</p>
+  </section>
+
+  <footer>
+    <span>© 2026 Appentium LLC</span>
+    <span><a href="https://github.com/Appentium/DevDuster">Source</a> · <a href="https://github.com/Appentium/DevDuster/releases">Releases</a> · <a href="https://github.com/Appentium/DevDuster/issues">Report an issue</a></span>
+  </footer>
+</div>
+</body>
+</html>
