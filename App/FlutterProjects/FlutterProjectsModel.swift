@@ -106,14 +106,6 @@ final class FlutterProjectsModel {
         selectedIDs = []
     }
 
-    func toggleFolder(_ folder: ScanItem) {
-        if selectedIDs.contains(folder.id) {
-            selectedIDs.remove(folder.id)
-        } else {
-            selectedIDs.insert(folder.id)
-        }
-    }
-
     func cleanSelected() async {
         let removedIDs = await cleanSession.clean(items: selectedItems, catalog: catalog)
         guard !removedIDs.isEmpty else { return }

@@ -100,13 +100,16 @@ struct FlutterProjectsView: View {
 
                 ForEach(model.projects) { project in
                     Section {
-                        ProjectRow(project: project, isStale: model.isStale(project))
+                        ProjectRow(
+                            project: project,
+                            isStale: model.isStale(project),
+                            folderSelections: project.folders.map(selection)
+                        )
                         ForEach(project.folders) { folder in
                             FolderRow(
                                 folder: folder,
                                 projectURL: project.url,
-                                isSelected: model.selectedIDs.contains(folder.id),
-                                onToggle: { model.toggleFolder(folder) }
+                                isSelected: selection(for: folder)
                             )
                         }
                     }
@@ -115,11 +118,25 @@ struct FlutterProjectsView: View {
             .listStyle(.inset)
         }
     }
+
+    private func selection(for folder: ScanItem) -> Binding<Bool> {
+        Binding(
+            get: { model.selectedIDs.contains(folder.id) },
+            set: { isOn in
+                if isOn {
+                    model.selectedIDs.insert(folder.id)
+                } else {
+                    model.selectedIDs.remove(folder.id)
+                }
+            }
+        )
+    }
 }
 
 private struct ProjectRow: View {
     let project: FlutterProjectsModel.ProjectEntry
     let isStale: Bool
+    let folderSelections: [Binding<Bool>]
 
     private var activityText: String {
         if project.lastActivity == .distantPast { return "Unknown activity" }
@@ -127,7 +144,14 @@ private struct ProjectRow: View {
     }
 
     var body: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .top, spacing: 10) {
+            Toggle(sources: folderSelections, isOn: \.self) {
+                EmptyView()
+            }
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+            .help("Select all folders in this project")
+
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
                     Text(project.url.lastPathComponent)
@@ -163,8 +187,7 @@ private struct ProjectRow: View {
 private struct FolderRow: View {
     let folder: ScanItem
     let projectURL: URL
-    let isSelected: Bool
-    let onToggle: () -> Void
+    let isSelected: Binding<Bool>
 
     private var relativeName: String {
         let base = projectURL.path(percentEncoded: false)
@@ -178,7 +201,7 @@ private struct FolderRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Toggle(isOn: Binding(get: { isSelected }, set: { _ in onToggle() })) {
+            Toggle(isOn: isSelected) {
                 EmptyView()
             }
             .toggleStyle(.checkbox)
