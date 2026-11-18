@@ -98,6 +98,16 @@ make test
 
 All scanning and cleaning logic lives in the `DusterCore` Swift package (`Packages/DusterCore`), with tests that run against temporary folders only. The SwiftUI app is in `App/`, the helper in `Helper/` and the CLI in `CLI/`. To sign with your own team, change `DEVELOPMENT_TEAM` in `project.yml`.
 
+### Releasing
+
+Bump `MARKETING_VERSION` in `project.yml`, commit, then run:
+
+```bash
+make release
+```
+
+It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket and publishes `DevDuster.zip` as a GitHub release. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
+
 ## Support
 
 Found a bug or want a rule for another tool? [Open an issue](https://github.com/Appentium/DevDuster/issues). For anything else, including security reports, email [info@devduster.com](mailto:info@devduster.com).
