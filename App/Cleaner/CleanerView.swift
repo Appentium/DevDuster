@@ -282,10 +282,10 @@ private struct ScanItemRow: View {
             .labelsHidden()
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.url.lastPathComponent)
+                Text(item.projectName ?? item.url.lastPathComponent)
                     .font(.body)
                     .lineLimit(1)
-                Text(item.url.path(percentEncoded: false))
+                Text((item.workspace ?? item.url).path(percentEncoded: false))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
