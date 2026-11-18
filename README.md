@@ -97,3 +97,7 @@ make test
 ```
 
 All scanning and cleaning logic lives in the `DusterCore` Swift package (`Packages/DusterCore`), with tests that run against temporary folders only. The SwiftUI app is in `App/`, the helper in `Helper/` and the CLI in `CLI/`. To sign with your own team, change `DEVELOPMENT_TEAM` in `project.yml`.
+
+## Support
+
+Found a bug or want a rule for another tool? [Open an issue](https://github.com/Appentium/DevDuster/issues). For anything else, including security reports, email [info@devduster.com](mailto:info@devduster.com).
