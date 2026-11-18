@@ -13,6 +13,10 @@
   <a href="https://github.com/Appentium/DevDustpan/releases/latest"><b>Download the latest release</b></a>
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/cleaner.png" width="800" alt="Cleaner: DerivedData labelled by project, with Safe, Review and Caution tiers">
+</p>
+
 ---
 
 The app installs as **Sweep**. It is a SwiftUI app with a small privileged helper and a `sweep` command-line tool.
@@ -36,6 +40,16 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 - **System**: local Time Machine snapshots, `/Library/Caches`, rotated system logs and root-owned trash, through a privileged helper with a fixed allowlist.
 - **External disks**: scans every mounted volume and shows each volume's trash, with an Empty Trash button.
 - **Automation (all off by default)**: a menu bar item, low-space alerts and a scheduled clean of the Safe tier.
+
+## Screenshots
+
+| Xcode & Android | Flutter Projects |
+|---|---|
+| ![Xcode and Android](docs/screenshots/xcode-android.png) | ![Flutter Projects](docs/screenshots/flutter-projects.png) |
+| **Uninstaller** | **Disk Map** |
+| ![Uninstaller](docs/screenshots/uninstaller.png) | ![Disk Map](docs/screenshots/disk-map.png) |
+| **Large Files** | |
+| ![Large Files](docs/screenshots/large-files.png) | |
 
 ## Safety
 
