@@ -65,6 +65,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.appentium.sweep.helper
         PRODUCT_NAME: SweepHelper
+        SKIP_INSTALL: YES
         GENERATE_INFOPLIST_FILE: YES
         CREATE_INFOPLIST_SECTION_IN_BINARY: YES
     dependencies:
@@ -77,6 +78,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.appentium.sweep.cli
         PRODUCT_NAME: sweep
+        SKIP_INSTALL: YES
         GENERATE_INFOPLIST_FILE: YES
         CREATE_INFOPLIST_SECTION_IN_BINARY: YES
     dependencies:
