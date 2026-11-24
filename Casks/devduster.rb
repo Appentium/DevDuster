@@ -1,6 +1,6 @@
 cask "devduster" do
-  version "0.1.1"
-  sha256 "08c70fe8f36c61044e613983074dfc93b4151fb2f3646172ee0d65d256bc0181"
+  version "0.1.2"
+  sha256 "d9878b6dc9efaed33ddf3df3404b32baa1ff9466e1c43e49c41a4a46593306be"
 
   url "https://github.com/Appentium/DevDuster/releases/download/v#{version}/DevDuster.zip"
   name "DevDuster"
@@ -13,7 +13,7 @@ cask "devduster" do
   end
 
   auto_updates true
-  depends_on arch: :arm64
+  depends_on macos: ">= :sonoma"
 
   app "DevDuster.app"
   binary "#{appdir}/DevDuster.app/Contents/MacOS/duster"
