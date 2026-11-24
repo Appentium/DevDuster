@@ -1,7 +1,7 @@
 name: DevDuster
 options:
   deploymentTarget:
-    macOS: "27.0"
+    macOS: "14.0"
   createIntermediateGroups: true
 settings:
   base:

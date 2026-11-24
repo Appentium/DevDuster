@@ -3,13 +3,13 @@ import email.utils
 import re
 import sys
 
-appcast, version, build, size, signature, url = sys.argv[1:7]
+appcast, version, build, minimum_os, size, signature, url = sys.argv[1:8]
 item = f"""        <item>
             <title>Version {version}</title>
             <pubDate>{email.utils.formatdate(usegmt=True)}</pubDate>
             <sparkle:version>{build}</sparkle:version>
             <sparkle:shortVersionString>{version}</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>27.0</sparkle:minimumSystemVersion>
+            <sparkle:minimumSystemVersion>{minimum_os}</sparkle:minimumSystemVersion>
             <sparkle:fullReleaseNotesLink>https://devduster.com/changelog.html</sparkle:fullReleaseNotesLink>
             <enclosure url="{url}" length="{size}" type="application/octet-stream" sparkle:edSignature="{signature}"/>
         </item>

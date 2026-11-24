@@ -6,6 +6,7 @@ out=build/release
 archive=$out/DevDuster.xcarchive
 version=$(sed -nE 's/^ *MARKETING_VERSION: "?([^"]+)"?$/\1/p' project.yml)
 build=$(sed -nE 's/^ *CURRENT_PROJECT_VERSION: "?([^"]+)"?$/\1/p' project.yml)
+minimum_os=$(sed -nE 's/^ *macOS: "?([^"]+)"?$/\1/p' project.yml)
 tag="v$version"
 sparkle_bin=build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
 appcast="${DEVDUSTER_SITE:-../devduster-website}/appcast.xml"
@@ -45,7 +46,7 @@ ditto -c -k --keepParent "$app" "$out/DevDuster.zip"
 # sign_update reads the private EdDSA key from the login Keychain and prints sparkle:edSignature and length.
 signature=$("$sparkle_bin/sign_update" "$out/DevDuster.zip")
 [[ "$signature" =~ 'sparkle:edSignature="([^"]+)" length="([0-9]+)"' ]] || { echo "Could not sign the zip: $signature"; exit 1; }
-scripts/update_appcast.py "$appcast" "$version" "$build" "${match[2]}" "${match[1]}" \
+scripts/update_appcast.py "$appcast" "$version" "$build" "$minimum_os" "${match[2]}" "${match[1]}" \
   "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster.zip"
 
 sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" Casks/devduster.rb

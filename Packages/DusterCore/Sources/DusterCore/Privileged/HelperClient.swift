@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 
 public struct HelperClient: Sendable {
     private typealias Reply = @Sendable (Data?, String?) -> Void
@@ -112,7 +112,7 @@ public struct HelperClient: Sendable {
 }
 
 private final class PendingReply<Value: Sendable>: Sendable {
-    private let continuation = Mutex<CheckedContinuation<Result<Value, HelperError>, Never>?>(nil)
+    private let continuation = OSAllocatedUnfairLock<CheckedContinuation<Result<Value, HelperError>, Never>?>(initialState: nil)
 
     func start(_ continuation: CheckedContinuation<Result<Value, HelperError>, Never>) {
         self.continuation.withLock { $0 = continuation }

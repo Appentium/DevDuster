@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-import Synchronization
+import os
 
 public final class SizeCalculator: Sendable {
     private struct Inode: Hashable {
@@ -9,7 +9,7 @@ public final class SizeCalculator: Sendable {
     }
 
     private static let keys: Set<URLResourceKey> = [.totalFileAllocatedSizeKey, .linkCountKey, .fileIdentifierKey, .isRegularFileKey]
-    private let seenLinks = Mutex<Set<Inode>>([])
+    private let seenLinks = OSAllocatedUnfairLock<Set<Inode>>(initialState: [])
 
     public init() {}
 

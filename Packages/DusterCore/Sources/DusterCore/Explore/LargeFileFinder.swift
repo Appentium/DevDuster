@@ -1,6 +1,6 @@
 import Darwin
 import Foundation
-import Synchronization
+import os
 
 public struct LargeFile: Sendable, Hashable, Identifiable {
     public let url: URL
@@ -32,7 +32,7 @@ public enum LargeFileEvent: Sendable {
 
 public struct LargeFileFinder: Sendable {
     private final class ScanCounter: Sendable {
-        let value = Atomic<Int>(0)
+        let value = OSAllocatedUnfairLock(initialState: 0)
     }
 
     private static let skippedNames: Set<String> = [
@@ -106,12 +106,18 @@ public struct LargeFileFinder: Sendable {
                     fts_set(fts, entry, FTS_SKIP)
                     continue
                 }
-                let count = scanned.value.wrappingAdd(1, ordering: .relaxed).newValue
+                let count = scanned.value.withLock { count in
+                    count += 1
+                    return count
+                }
                 if count % 500 == 0 {
                     emit(.progress(path: path, filesScanned: count))
                 }
             case FTS_F:
-                let count = scanned.value.wrappingAdd(1, ordering: .relaxed).newValue
+                let count = scanned.value.withLock { count in
+                    count += 1
+                    return count
+                }
                 if count % 500 == 0 {
                     emit(.progress(path: path, filesScanned: count))
                 }

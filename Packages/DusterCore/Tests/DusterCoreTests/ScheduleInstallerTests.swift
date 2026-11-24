@@ -1,11 +1,11 @@
-import Synchronization
+import os
 import Foundation
 import Testing
 @testable import DusterCore
 
 @Suite struct ScheduleInstallerTests {
     private final class Calls: Sendable {
-        private let storage = Mutex<[[String]]>([])
+        private let storage = OSAllocatedUnfairLock<[[String]]>(initialState: [])
         var all: [[String]] { storage.withLock { $0 } }
         func record(_ arguments: [String]) { storage.withLock { $0.append(arguments) } }
     }

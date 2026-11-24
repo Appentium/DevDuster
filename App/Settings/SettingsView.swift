@@ -7,12 +7,10 @@ struct SettingsView: View {
 
     var body: some View {
         TabView {
-            Tab("General", systemImage: "gearshape") {
-                GeneralSettingsView(model: model)
-            }
-            Tab("Automation", systemImage: "clock.arrow.2.circlepath") {
-                AutomationSettingsView(model: model)
-            }
+            GeneralSettingsView(model: model)
+                .tabItem { Label("General", systemImage: "gearshape") }
+            AutomationSettingsView(model: model)
+                .tabItem { Label("Automation", systemImage: "clock.arrow.2.circlepath") }
         }
         .frame(width: 520, height: 460)
     }

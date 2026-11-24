@@ -1,5 +1,5 @@
 import Foundation
-import Synchronization
+import os
 import DusterCore
 
 final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
@@ -18,7 +18,7 @@ final class HelperListenerDelegate: NSObject, NSXPCListenerDelegate {
 }
 
 final class OpenConnections: Sendable {
-    private let count = Mutex(0)
+    private let count = OSAllocatedUnfairLock(initialState: 0)
 
     func opened() {
         count.withLock { $0 += 1 }

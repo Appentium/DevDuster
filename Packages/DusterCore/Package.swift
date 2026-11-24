@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "DusterCore",
-    platforms: [.macOS("27.0")],
+    platforms: [.macOS(.v14)],
     products: [.library(name: "DusterCore", targets: ["DusterCore"])],
     targets: [
         .target(

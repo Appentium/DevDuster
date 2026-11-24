@@ -72,7 +72,7 @@ brew trust --cask appentium/devduster/devduster
 brew install --cask devduster
 ```
 
-Requires macOS 27 or later on Apple silicon. The app is signed with a Developer ID and notarized by Apple.
+Requires macOS 14 Sonoma or later, on Apple silicon or Intel. The app is signed with a Developer ID and notarized by Apple.
 
 ### Command line
 
