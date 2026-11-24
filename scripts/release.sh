@@ -8,6 +8,8 @@ version=$(sed -nE 's/^ *MARKETING_VERSION: "?([^"]+)"?$/\1/p' project.yml)
 build=$(sed -nE 's/^ *CURRENT_PROJECT_VERSION: "?([^"]+)"?$/\1/p' project.yml)
 tag="v$version"
 sparkle_bin=build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
+appcast="${DEVDUSTER_SITE:-../devduster-website}/appcast.xml"
+[[ -f "$appcast" ]] || { echo "No $appcast; clone Appentium/devduster-website next to this repo or set DEVDUSTER_SITE."; exit 1; }
 
 if [[ "${1:-}" != "--resume" ]]; then
   [[ -z "$(git status --porcelain)" ]] || { echo "Commit or stash your changes first."; exit 1; }
@@ -43,10 +45,10 @@ ditto -c -k --keepParent "$app" "$out/DevDuster.zip"
 # sign_update reads the private EdDSA key from the login Keychain and prints sparkle:edSignature and length.
 signature=$("$sparkle_bin/sign_update" "$out/DevDuster.zip")
 [[ "$signature" =~ 'sparkle:edSignature="([^"]+)" length="([0-9]+)"' ]] || { echo "Could not sign the zip: $signature"; exit 1; }
-scripts/update_appcast.py website/appcast.xml "$version" "$build" "${match[2]}" "${match[1]}" \
+scripts/update_appcast.py "$appcast" "$version" "$build" "${match[2]}" "${match[1]}" \
   "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster.zip"
 
 sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" packaging/homebrew/devduster.rb
 
 gh release create "$tag" "$out/DevDuster.zip" --title "DevDuster $version" --generate-notes
-echo "Published $tag. Commit website/appcast.xml and packaging/homebrew/devduster.rb, copy the cask to the tap, then run make site and upload build/devduster-site.zip."
+echo "Published $tag. Commit packaging/homebrew/devduster.rb and copy it to the tap; commit $appcast and upload it to devduster.com."

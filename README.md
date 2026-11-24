@@ -112,11 +112,7 @@ Bump `MARKETING_VERSION` in `project.yml`, commit, then run:
 make release
 ```
 
-It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to `website/appcast.xml` and the Homebrew cask, and publishes `DevDuster.zip` as a GitHub release. Then commit the appcast and cask, run `make site` and upload `build/devduster-site.zip` (see `website/DEPLOY.md`). If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
-
-## Website
-
-The site at devduster.com is plain static files in `website/`. `make site` zips it for a cPanel upload.
+It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to the update feed and the Homebrew cask, and publishes `DevDuster.zip` as a GitHub release. The feed (`appcast.xml`) lives in the private website repo, expected next to this one as `../devduster-website` or at `DEVDUSTER_SITE`. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
 
 ## License
 
