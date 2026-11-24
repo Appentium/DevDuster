@@ -22,6 +22,9 @@ packages:
   swift-argument-parser:
     url: https://github.com/apple/swift-argument-parser
     from: 1.5.0
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.6.0
 targets:
   DevDuster:
     type: application
@@ -41,8 +44,17 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: DevDuster
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+    info:
+      path: App/Info.plist
+      properties:
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        SUFeedURL: https://devduster.com/appcast.xml
+        SUPublicEDKey: NWOGLMydurcDJDBLKU0un0FyKKo+2ERAtbUtkLEZJEM=
+        SUEnableAutomaticChecks: true
     dependencies:
       - package: DusterCore
+      - package: Sparkle
       - target: DusterHelper
         link: false
         embed: true

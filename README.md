@@ -64,6 +64,12 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 2. Open it and grant **Full Disk Access** when asked, so it can measure caches in protected folders.
 3. Optional: to use the **System** section, allow DevDuster's helper under **System Settings → General → Login Items & Extensions**.
 
+Or with Homebrew:
+
+```bash
+brew install --cask appentium/devduster/devduster
+```
+
 Requires macOS 27 or later on Apple silicon. The app is signed with a Developer ID and notarized by Apple.
 
 ### Command line
@@ -106,7 +112,15 @@ Bump `MARKETING_VERSION` in `project.yml`, commit, then run:
 make release
 ```
 
-It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket and publishes `DevDuster.zip` as a GitHub release. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
+It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to `website/appcast.xml` and the Homebrew cask, and publishes `DevDuster.zip` as a GitHub release. Then commit the appcast and cask, run `make site` and upload `build/devduster-site.zip` (see `website/DEPLOY.md`). If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
+
+## Website
+
+The site at devduster.com is plain static files in `website/`. `make site` zips it for a cPanel upload.
+
+## License
+
+MIT, see `LICENSE`.
 
 ## Support
 

@@ -7,6 +7,7 @@ struct DevDusterApp: App {
     @State private var cleanerModel = CleanerModel()
     @State private var settingsModel = SettingsModel()
     @State private var volumeMonitor = VolumeMonitorModel()
+    @State private var updater = UpdaterModel()
 
     var body: some Scene {
         Window("DevDuster", id: "main") {
@@ -15,6 +16,12 @@ struct DevDusterApp: App {
                 .task { settingsModel.applySchedule() }
         }
         .defaultSize(width: 980, height: 660)
+        .commands {
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…", action: updater.checkForUpdates)
+                    .disabled(!updater.canCheckForUpdates)
+            }
+        }
 
         MenuBarExtra(isInserted: $settingsModel.menuBarEnabled) {
             MenuBarContent(model: volumeMonitor, onOpen: openMainWindow, onScan: scanNow)

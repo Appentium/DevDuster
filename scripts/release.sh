@@ -5,7 +5,9 @@ cd "$(dirname "$0")/.."
 out=build/release
 archive=$out/DevDuster.xcarchive
 version=$(sed -nE 's/^ *MARKETING_VERSION: "?([^"]+)"?$/\1/p' project.yml)
+build=$(sed -nE 's/^ *CURRENT_PROJECT_VERSION: "?([^"]+)"?$/\1/p' project.yml)
 tag="v$version"
+sparkle_bin=build/DerivedData/SourcePackages/artifacts/sparkle/Sparkle/bin
 
 if [[ "${1:-}" != "--resume" ]]; then
   [[ -z "$(git status --porcelain)" ]] || { echo "Commit or stash your changes first."; exit 1; }
@@ -36,5 +38,15 @@ xcrun stapler validate "$app"
 spctl --assess --type execute "$app"
 
 ditto -c -k --keepParent "$app" "$out/DevDuster.zip"
+
+[[ -x "$sparkle_bin/sign_update" ]] || xcodebuild -resolvePackageDependencies -project DevDuster.xcodeproj -scheme DevDuster -derivedDataPath build/DerivedData -quiet
+# sign_update reads the private EdDSA key from the login Keychain and prints sparkle:edSignature and length.
+signature=$("$sparkle_bin/sign_update" "$out/DevDuster.zip")
+[[ "$signature" =~ 'sparkle:edSignature="([^"]+)" length="([0-9]+)"' ]] || { echo "Could not sign the zip: $signature"; exit 1; }
+scripts/update_appcast.py website/appcast.xml "$version" "$build" "${match[2]}" "${match[1]}" \
+  "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster.zip"
+
+sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" packaging/homebrew/devduster.rb
+
 gh release create "$tag" "$out/DevDuster.zip" --title "DevDuster $version" --generate-notes
-echo "Published $tag"
+echo "Published $tag. Commit website/appcast.xml and packaging/homebrew/devduster.rb, copy the cask to the tap, then run make site and upload build/devduster-site.zip."
