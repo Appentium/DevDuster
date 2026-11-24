@@ -68,6 +68,7 @@ Or with Homebrew:
 
 ```bash
 brew tap appentium/devduster https://github.com/Appentium/DevDuster
+brew trust --cask appentium/devduster/devduster
 brew install --cask devduster
 ```
 
