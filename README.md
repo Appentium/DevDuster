@@ -23,17 +23,17 @@ DevDuster is a SwiftUI app with a small privileged helper and a `duster` command
 
 ## Why
 
-General Mac cleaners skip most developer data or treat it as a black box. A developer's disk fills up with build output and caches that can all be regenerated: DerivedData, simulators, Gradle caches, Android system images, `build/` folders in every Flutter project. DevDuster knows what each of these is, what rebuilds it, and how risky it is to remove.
+General Mac cleaners skip most developer data or treat it as a black box. A developer's disk fills up with build output and caches that can all be regenerated: DerivedData, simulators, Gradle caches, `node_modules`, `.venv`, Cargo and Go caches, editor caches, downloaded AI models. DevDuster covers 30+ tool families: Xcode, Android, Flutter, JavaScript, Python, Rust, Go, Java and Kotlin, PHP, Ruby, .NET, editors such as VS Code, Cursor and JetBrains, AI tools such as Claude Code and Ollama, game engines and DevOps tools. DevDuster knows what each of these is, what rebuilds it, and how risky it is to remove.
 
 ## Features
 
-- **Cleaner**: 40+ built-in rules for caches, logs and build output. Each rule says what it is, what regenerates it, and a tier:
-  - **Safe**: rebuilt automatically (DerivedData, SwiftPM, Homebrew, CocoaPods, npm, Yarn and pip caches, Gradle build cache).
-  - **Review**: re-downloaded on demand (old Gradle caches and wrappers, old iOS DeviceSupport, the Dart pub cache, unused Docker data).
-  - **Caution**: you pick each item (AVDs, unused Android system images, old NDKs, build tools and SDK platforms, simulator runtimes, Xcode archives, device backups).
-- **Xcode & Android**: everything for both platforms in one place. DerivedData folders are labelled with the project they belong to, and simulators and runtimes are removed through `simctl`.
+- **Cleaner**: 100+ built-in rules for caches, logs and build output. Each rule says what it is, what regenerates it, and a tier:
+  - **Safe**: rebuilt automatically (DerivedData, SwiftPM, CocoaPods, Homebrew, npm, Yarn, pnpm, Bun, pip, uv, Poetry, Cargo, Go build, Composer and NuGet caches, editor and AI tool caches and logs, Gradle build cache).
+  - **Review**: re-downloaded or rebuilt on demand (old Gradle caches and wrappers, Maven, Go modules, Conda packages, Playwright browsers, old iOS DeviceSupport, the Dart pub cache, unused Docker data).
+  - **Caution**: you pick each item (Ollama, LM Studio and Hugging Face models, AVDs, unused Android system images, old NDKs, build tools and SDK platforms, simulator runtimes, Vagrant boxes, Xcode archives, device backups).
+- **Developer Tools**: everything grouped by tool family, from Apple and Android to JavaScript, Python, Rust, Go, Java, editors, AI tools and AI models. DerivedData folders are labelled with the project they belong to, and simulators and runtimes are removed through `simctl`.
 - **Flutter Projects**: finds every Flutter project on every mounted volume and lists the `build/`, `.dart_tool/`, `ios/Pods` and Gradle folders, with last activity, per-project select-all and *Select stale*.
-- **Project artifacts**: `node_modules`, `Pods`, Gradle `build/` and Cargo `target/` are removed only when the matching marker file (`package.json`, `Podfile`, `build.gradle`, `Cargo.toml`) sits next to them, and never in projects you touched recently.
+- **Project artifacts**: `node_modules`, `.next`, `.venv`, `Pods`, Gradle `build/`, Cargo and Maven `target/`, Composer `vendor/` and more are removed only when the matching marker file (`package.json`, `pyproject.toml`, `Podfile`, `build.gradle`, `Cargo.toml`, `pom.xml`, `composer.json`) sits next to them, and never in projects you touched recently.
 - **Uninstaller**: removes apps together with their leftovers, background items and Homebrew packages. It also finds leftovers of apps that are already gone.
 - **Disk Map**: a treemap of any folder or volume with drill-down.
 - **Large Files**: finds large and old files with size and age filters.

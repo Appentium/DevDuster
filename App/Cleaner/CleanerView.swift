@@ -53,14 +53,14 @@ struct CleanerView: View {
     private var title: String {
         switch model.grouping {
         case .tier: "Cleaner"
-        case .platform: "Xcode & Android"
+        case .platform: "Developer Tools"
         }
     }
 
     private var scanDescription: String {
         switch model.grouping {
         case .tier: "Scan your home folder and mounted volumes for caches, logs, and stale build artifacts."
-        case .platform: "Scan for Xcode, simulator, Gradle and Android SDK leftovers."
+        case .platform: "Scan caches and build output from Xcode, Android, JavaScript, Python, Rust, Go, Java, editors, AI tools and more."
         }
     }
 
@@ -214,6 +214,21 @@ private extension Rule.Platform {
         switch self {
         case .apple: "Apple"
         case .android: "Android"
+        case .flutter: "Flutter & Dart"
+        case .javascript: "JavaScript"
+        case .python: "Python"
+        case .rust: "Rust"
+        case .go: "Go"
+        case .jvm: "Java & Kotlin"
+        case .php: "PHP"
+        case .ruby: "Ruby"
+        case .dotnet: ".NET"
+        case .otherLanguages: "Other Languages"
+        case .editors: "Editors & IDEs"
+        case .aiTools: "AI Tools"
+        case .aiModels: "AI Models"
+        case .gameEngines: "Game Engines"
+        case .devTools: "Build & DevOps"
         }
     }
 
@@ -221,6 +236,21 @@ private extension Rule.Platform {
         switch self {
         case .apple: "apple.logo"
         case .android: "smartphone"
+        case .flutter: "bird"
+        case .javascript: "curlybraces"
+        case .python: "chevron.left.forwardslash.chevron.right"
+        case .rust: "gearshape.2"
+        case .go: "hare"
+        case .jvm: "cup.and.saucer"
+        case .php: "server.rack"
+        case .ruby: "diamond"
+        case .dotnet: "number"
+        case .otherLanguages: "character.book.closed"
+        case .editors: "macwindow"
+        case .aiTools: "sparkles"
+        case .aiModels: "brain"
+        case .gameEngines: "gamecontroller"
+        case .devTools: "shippingbox"
         }
     }
 }

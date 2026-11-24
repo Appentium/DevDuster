@@ -130,6 +130,74 @@ import Testing
         #expect(Set(report.items.map(\.rule.id)) == ["xcode.derived-data", "xcode.ib-support", "android.sdk-cache"])
     }
 
+    @Test func newToolCachesAreFoundByName() async throws {
+        let fixture = try Fixture()
+        let expected = [
+            ("pnpm.store", "home/Library/pnpm/store"),
+            ("uv.cache", "home/.cache/uv"),
+            ("cargo.registry", "home/.cargo/registry/cache"),
+            ("go.build-cache", "home/Library/Caches/go-build"),
+            ("maven.repository", "home/.m2/repository"),
+            ("composer.cache", "home/Library/Caches/composer"),
+            ("jetbrains.caches", "home/Library/Caches/JetBrains/IntelliJIdea2025.2"),
+            ("cursor.caches", "home/Library/Application Support/Cursor/CachedData"),
+            ("vscode.caches", "home/Library/Application Support/Code/CachedData"),
+            ("codex.caches", "home/Library/Application Support/Codex/Cache"),
+            ("claude-code.logs", "home/.claude/debug"),
+            ("huggingface.models", "home/.cache/huggingface/hub/models--org--name"),
+        ]
+        for (_, path) in expected {
+            try fixture.file("\(path)/x")
+        }
+
+        let report = await fixture.scan()
+        for (ruleID, path) in expected {
+            #expect(report.paths(for: ruleID) == [fixture.url(path).filePath])
+        }
+        let broad = Set(report.paths(for: "electron.caches") + report.paths(for: "caches"))
+        #expect(broad.isDisjoint(with: [fixture.url("home/Library/Application Support/Cursor/CachedData").filePath, fixture.url("home/Library/Caches/JetBrains").filePath]))
+    }
+
+    @Test func claudeCodeTranscriptsAreNeverOffered() async throws {
+        let fixture = try Fixture()
+        try fixture.file("home/.claude/projects/p/s.jsonl")
+        try fixture.file("home/.claude/settings.json")
+        try fixture.file("home/.claude/debug/log.txt")
+
+        let report = await fixture.scan()
+        let claude = fixture.url("home/.claude")
+        #expect(report.items.allSatisfy { !$0.url.filePath.hasPrefix(claude.appending(path: "projects").filePath) && $0.url.filePath != claude.appending(path: "settings.json").filePath })
+        #expect(report.paths(for: "claude-code.logs") == [claude.appending(path: "debug").filePath])
+    }
+
+    @Test func eachModelIsItsOwnItem() async throws {
+        let fixture = try Fixture()
+        try fixture.file("home/.lmstudio/models/pub/a/a.gguf")
+        try fixture.file("home/.lmstudio/models/pub/b/b.gguf")
+
+        let report = await fixture.scan()
+        #expect(report.paths(for: "lmstudio.models").count == 2)
+        #expect(report.items.filter { $0.rule.id == "lmstudio.models" }.allSatisfy { $0.rule.tier == .caution })
+    }
+
+    @Test func ollamaModelsSkipWhileOllamaRuns() async throws {
+        let fixture = try Fixture()
+        try fixture.file("home/.ollama/models/blobs/x")
+
+        let running = await fixture.scan(running: ["ollama"])
+        #expect(running.paths(for: "ollama.models").isEmpty)
+        #expect(running.skipped.contains { $0.rule.id == "ollama.models" })
+        #expect(await fixture.scan().paths(for: "ollama.models").count == 1)
+    }
+
+    @Test func ruleIDsAreUniqueAndPlatformsTagged() {
+        let ids = RuleCatalog().rules.map(\.id)
+        #expect(Set(ids).count == ids.count)
+        let untagged = RuleCatalog().rules.filter { $0.platform == nil }.map(\.id)
+        #expect(Set(untagged) == ["electron.caches", "logs", "caches", "ios.backups"])
+        #expect(RuleCatalog(developerOnly: true).rules.count == ids.count - untagged.count)
+    }
+
     @Test func streamReportsItemsThenFinishes() async throws {
         let fixture = try Fixture()
         try fixture.file("home/Library/Logs/app.log")

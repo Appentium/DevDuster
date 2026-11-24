@@ -16,7 +16,7 @@ public struct Rule: Sendable, Hashable, Identifiable {
     }
 
     public enum Platform: String, CaseIterable, Sendable, Hashable {
-        case apple, android
+        case apple, android, flutter, javascript, python, rust, go, jvm, php, ruby, dotnet, otherLanguages, editors, aiTools, aiModels, gameEngines, devTools
     }
 
     public enum Pick: Sendable, Hashable {

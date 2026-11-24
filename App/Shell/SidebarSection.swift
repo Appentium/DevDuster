@@ -4,7 +4,7 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case dashboard = "Dashboard"
     case cleaner = "Cleaner"
     case uninstaller = "Uninstaller"
-    case developerJunk = "Xcode & Android"
+    case developerJunk = "Developer Tools"
     case flutterProjects = "Flutter Projects"
     case diskMap = "Disk Map"
     case largeFiles = "Large Files"

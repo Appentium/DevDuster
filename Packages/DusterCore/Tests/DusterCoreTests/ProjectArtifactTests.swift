@@ -23,6 +23,29 @@ import Testing
         #expect(matcher.rule(forArtifact: artifact)?.id == ruleID)
     }
 
+    @Test func newArtifactKindsAreMatchedByTheirOwnMarkers() async throws {
+        let fixture = try Fixture()
+        let projects = [
+            ("web", "next.config.mjs", ".next", "project.next"),
+            ("py", "pyproject.toml", ".venv", "project.venv"),
+            ("java", "pom.xml", "target", "project.maven-target"),
+            ("rust", "Cargo.toml", "target", "project.cargo-target"),
+        ]
+        for (name, marker, directory, _) in projects {
+            try fixture.file("home/Code/\(name)/\(marker)", ageDays: 60)
+            try fixture.file("home/Code/\(name)/\(directory)/out.bin", ageDays: 60)
+        }
+        try fixture.file("home/Code/php/vendor/lib.php", ageDays: 60)
+        try fixture.file("home/Code/php/index.php", ageDays: 60)
+
+        let report = await fixture.scan()
+        for (name, _, directory, ruleID) in projects {
+            #expect(report.paths(for: ruleID) == [fixture.url("home/Code/\(name)/\(directory)").filePath])
+        }
+        #expect(report.paths(for: "project.composer-vendor").isEmpty)
+        #expect(report.items.count == projects.count)
+    }
+
     @Test func markerThatIsADirectoryDoesNotCount() throws {
         let fixture = try Fixture()
         let artifact = try fixture.directory("app/build")
