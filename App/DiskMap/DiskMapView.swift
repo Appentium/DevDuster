@@ -48,6 +48,10 @@ struct DiskMapView: View {
 
             Button("Choose Folder…") { model.chooseFolder() }
 
+            Toggle("Remember", isOn: $model.remembersLocation)
+                .toggleStyle(.checkbox)
+                .help("Open this location next time")
+
             if model.scanning {
                 Button("Stop") { model.cancelScan() }
             } else {
@@ -116,27 +120,31 @@ struct DiskMapView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 GeometryReader { proxy in
-                    let tiles = TreemapLayout.tiles(for: current.children, in: CGRect(origin: .zero, size: proxy.size))
-                    ZStack(alignment: .topLeading) {
-                        ForEach(tiles) { tile in
-                            TreemapTileView(
-                                tile: tile,
-                                isHovered: model.hoveredNode?.id == tile.id,
-                                moveToTrash: model.cleanSession.moveToTrash,
-                                onHover: { hovering in
-                                    if hovering {
-                                        model.hoveredNode = tile.node
-                                    } else if model.hoveredNode?.id == tile.id {
-                                        model.hoveredNode = nil
-                                    }
-                                },
-                                onTap: { model.drillInto(tile.node) },
-                                onReveal: { model.revealInFinder(tile.node) },
-                                onDelete: { model.requestDelete(tile.node) }
-                            )
+                    let canvas = TreemapLayout.canvasSize(for: current.children, viewport: proxy.size)
+                    let tiles = TreemapLayout.tiles(for: current.children, in: CGRect(origin: .zero, size: canvas))
+                    ScrollView(.horizontal) {
+                        ZStack(alignment: .topLeading) {
+                            ForEach(tiles) { tile in
+                                TreemapTileView(
+                                    tile: tile,
+                                    isHovered: model.hoveredNode?.id == tile.id,
+                                    moveToTrash: model.cleanSession.moveToTrash,
+                                    onHover: { hovering in
+                                        if hovering {
+                                            model.hoveredNode = tile.node
+                                        } else if model.hoveredNode?.id == tile.id {
+                                            model.hoveredNode = nil
+                                        }
+                                    },
+                                    onTap: { model.drillInto(tile.node) },
+                                    onReveal: { model.revealInFinder(tile.node) },
+                                    onDelete: { model.requestDelete(tile.node) }
+                                )
+                            }
                         }
+                        .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
                     }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .wheelScrollsHorizontally()
                 }
                 .padding(8)
             }
@@ -237,7 +245,6 @@ private struct TreemapTileView: View {
             }
         }
         .frame(width: tile.rect.width, height: tile.rect.height)
-        .offset(x: tile.rect.minX, y: tile.rect.minY)
         .contentShape(Rectangle())
         .onHover(perform: onHover)
         .onTapGesture(perform: onTap)
@@ -249,6 +256,8 @@ private struct TreemapTileView: View {
                 Button(moveToTrash ? "Move to Trash…" : "Delete Permanently…", role: .destructive, action: onDelete)
             }
         }
+        // Offset last so the hover and click area moves with the drawn tile.
+        .offset(x: tile.rect.minX, y: tile.rect.minY)
     }
 
     private var tileColor: Color {

@@ -33,8 +33,12 @@ import DusterCore
         }
     }
 
+    private static let rememberKey = "diskMap.rememberLocation"
+    private static let lastLocationKey = "diskMap.lastLocation"
+
     private let catalog = RuleCatalog()
     private let volumeService = VolumeService()
+    private let defaults = UserDefaults.standard
 
     var selectedSource: RootSource
     var volumes: [Volume] = []
@@ -48,6 +52,12 @@ import DusterCore
     var scannedItems = 0
     var pendingDelete: DiskNode?
     var cleanSession = CleanSessionModel()
+    var remembersLocation: Bool {
+        didSet {
+            defaults.set(remembersLocation, forKey: Self.rememberKey)
+            saveLocation()
+        }
+    }
 
     private var scanTask: Task<Void, Never>?
 
@@ -55,6 +65,8 @@ import DusterCore
         let home = FileManager.default.homeDirectoryForCurrentUser
         selectedSource = .home(home)
         volumes = volumeService.volumes()
+        remembersLocation = defaults.bool(forKey: Self.rememberKey)
+        if remembersLocation { restoreLocation() }
     }
 
     var currentNode: DiskNode? {
@@ -77,6 +89,7 @@ import DusterCore
 
     func selectSource(_ source: RootSource) {
         selectedSource = source
+        saveLocation()
         startScan()
     }
 
@@ -89,7 +102,30 @@ import DusterCore
         guard panel.runModal() == .OK, let url = panel.url else { return }
         customFolder = url
         selectedSource = .folder(url)
+        saveLocation()
         startScan()
+    }
+
+    private func saveLocation() {
+        if remembersLocation {
+            defaults.set(selectedSource.url.path, forKey: Self.lastLocationKey)
+        } else {
+            defaults.removeObject(forKey: Self.lastLocationKey)
+        }
+    }
+
+    private func restoreLocation() {
+        guard let path = defaults.string(forKey: Self.lastLocationKey) else { return }
+        if path == catalog.home.path { return }
+        if let volume = volumes.first(where: { $0.url.path == path }) {
+            selectedSource = .volume(volume)
+            return
+        }
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory), isDirectory.boolValue else { return }
+        let url = URL(fileURLWithPath: path)
+        customFolder = url
+        selectedSource = .folder(url)
     }
 
     func startScan() {
