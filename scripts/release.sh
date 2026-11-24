@@ -48,7 +48,7 @@ signature=$("$sparkle_bin/sign_update" "$out/DevDuster.zip")
 scripts/update_appcast.py "$appcast" "$version" "$build" "${match[2]}" "${match[1]}" \
   "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster.zip"
 
-sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" packaging/homebrew/devduster.rb
+sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" Casks/devduster.rb
 
 gh release create "$tag" "$out/DevDuster.zip" --title "DevDuster $version" --generate-notes
-echo "Published $tag. Commit packaging/homebrew/devduster.rb and copy it to the tap; commit $appcast and upload it to devduster.com."
+echo "Published $tag. Commit and push Casks/devduster.rb; commit $appcast and upload it to devduster.com."

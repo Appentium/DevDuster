@@ -67,7 +67,8 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 Or with Homebrew:
 
 ```bash
-brew install --cask appentium/devduster/devduster
+brew tap appentium/devduster https://github.com/Appentium/DevDuster
+brew install --cask devduster
 ```
 
 Requires macOS 27 or later on Apple silicon. The app is signed with a Developer ID and notarized by Apple.
