@@ -25,6 +25,15 @@ private struct GeneralSettingsView: View {
     var body: some View {
         Form {
             Section {
+                Picker("Theme", selection: $model.theme) {
+                    ForEach(AppTheme.allCases) { theme in
+                        Text(theme.title).tag(theme)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            Section {
                 Stepper("Stale after \(model.staleDays) days", value: $model.staleDays, in: 1...365)
             } footer: {
                 Text("Project build folders are offered for cleaning once the project has had no activity for this long.")

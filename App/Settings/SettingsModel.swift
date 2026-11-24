@@ -1,4 +1,4 @@
-import Foundation
+import AppKit
 import Observation
 import DusterCore
 
@@ -9,7 +9,16 @@ final class SettingsModel {
     private let cliURL = Bundle.main.bundleURL.appending(path: "Contents/MacOS/duster")
     private var scheduleTask: Task<Void, Never>?
 
+    private static let themeKey = "appTheme"
+
     private(set) var scheduleError: String?
+
+    var theme: AppTheme {
+        didSet {
+            UserDefaults.standard.set(theme.rawValue, forKey: Self.themeKey)
+            NSApplication.shared.appearance = theme.appearance
+        }
+    }
 
     var staleDays: Int { didSet { settings.staleDays = staleDays } }
     var excludedPaths: [String] { didSet { settings.excludedPaths = excludedPaths } }
@@ -24,6 +33,9 @@ final class SettingsModel {
     var scheduledCleanMovesToTrash: Bool { didSet { updateSchedule { $0.scheduledCleanMovesToTrash = scheduledCleanMovesToTrash } } }
 
     init() {
+        let savedTheme = UserDefaults.standard.string(forKey: Self.themeKey).flatMap(AppTheme.init) ?? .light
+        theme = savedTheme
+        NSApplication.shared.appearance = savedTheme.appearance
         staleDays = settings.staleDays
         excludedPaths = settings.excludedPaths
         menuBarEnabled = settings.menuBarEnabled

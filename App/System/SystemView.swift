@@ -7,8 +7,25 @@ struct SystemView: View {
 
     var body: some View {
         List {
+            Section {
+                Text("Frees space that belongs to macOS, not to your account. Deleting it needs admin rights, so DevDuster uses a small helper that runs in the background.")
+                Label("macOS clears most of this on its own when the disk gets full. Use it when you need space right away.", systemImage: "info.circle")
+                    .foregroundStyle(.secondary)
+            }
+
             Section("Privileged Helper") {
                 HelperStatusRow(model: model)
+                Label("The helper runs with admin rights. It can only delete the items listed here, and you can uninstall it any time.", systemImage: "lock.shield")
+                    .font(.callout)
+                    .foregroundStyle(.orange)
+            }
+
+            if model.status != .enabled {
+                Section("What it can clean") {
+                    ForEach(SystemCategory.allCases) { category in
+                        CategoryInfo(category: category, showsTitle: true)
+                    }
+                }
             }
 
             if model.status == .enabled {
@@ -86,6 +103,7 @@ private struct CategorySection: View {
 
     var body: some View {
         Section {
+            CategoryInfo(category: category, showsTitle: false)
             if let error = model.loadErrors[category] {
                 Text(error)
                     .foregroundStyle(.red)
@@ -121,6 +139,26 @@ private struct CategorySection: View {
                     .disabled(!model.canClean(category))
             }
         }
+    }
+}
+
+private struct CategoryInfo: View {
+    let category: SystemCategory
+    let showsTitle: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if showsTitle {
+                Text(category.title)
+                    .font(.headline)
+            }
+            Text(category.summary)
+                .foregroundStyle(.secondary)
+            Label(category.warning, systemImage: "exclamationmark.triangle.fill")
+                .font(.callout)
+                .foregroundStyle(.orange)
+        }
+        .padding(.vertical, 2)
     }
 }
 

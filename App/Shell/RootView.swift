@@ -40,10 +40,15 @@ struct RootView: View {
     private var detailView: some View {
         switch selection {
         case .dashboard:
-            DashboardView(model: dashboardModel) {
-                selection = .cleaner
-                cleanerModel.startScan()
-            }
+            DashboardView(
+                model: dashboardModel,
+                cleaner: cleanerModel,
+                onScan: {
+                    selection = .cleaner
+                    cleanerModel.startScan()
+                },
+                onOpen: { selection = $0 }
+            )
         case .cleaner:
             CleanerView(model: cleanerModel)
         case .uninstaller:

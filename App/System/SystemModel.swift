@@ -25,6 +25,24 @@ enum SystemCategory: CaseIterable, Identifiable {
         }
     }
 
+    var summary: String {
+        switch self {
+        case .snapshots: "Time Machine restore points kept on this disk while your backup drive is away. macOS often shows them as purgeable space."
+        case .caches: "Shared caches that apps and macOS keep in /Library/Caches for every user on this Mac."
+        case .logs: "Old, rotated macOS system logs in /private/var/log."
+        case .trash: "Trash items owned by the system or other users, which the normal Empty Trash can't remove."
+        }
+    }
+
+    var warning: String {
+        switch self {
+        case .snapshots: "Removes those restore points on this disk. Backups on your Time Machine drive are not touched."
+        case .caches: "Apps rebuild these, so the first launch after cleaning can be slower and some apps may redownload data."
+        case .logs: "Removes history used to troubleshoot crashes. All archived logs are removed at once."
+        case .trash: "Items are deleted for good. Check nothing in them is still needed."
+        }
+    }
+
     // The helper can only remove every archived log at once.
     var isSelectable: Bool {
         self != .logs
