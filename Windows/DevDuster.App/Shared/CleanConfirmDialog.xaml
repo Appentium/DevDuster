@@ -1,0 +1,67 @@
+<ContentDialog
+    x:Class="DevDuster.App.Shared.CleanConfirmDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:scan="using:DevDuster.Core.Scan"
+    xmlns:shared="using:DevDuster.App.Shared"
+    CloseButtonText="Cancel"
+    DefaultButton="Close">
+
+    <StackPanel Spacing="12" MinWidth="460">
+        <TextBlock
+            Text="{x:Bind SummaryLine, Mode=OneWay}"
+            Style="{ThemeResource SubtitleTextBlockStyle}" />
+
+        <Border
+            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="6"
+            Padding="4">
+            <ListView
+                ItemsSource="{x:Bind Items}"
+                SelectionMode="None"
+                MaxHeight="220">
+                <ListView.ItemTemplate>
+                    <DataTemplate x:DataType="scan:ScanItem">
+                        <Grid ColumnSpacing="12" Padding="4,2">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock
+                                Text="{x:Bind Path}"
+                                TextTrimming="CharacterEllipsis"
+                                ToolTipService.ToolTip="{x:Bind Path}"
+                                Style="{ThemeResource CaptionTextBlockStyle}" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Text="{x:Bind shared:Ui.FormatBytes(Bytes)}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Style="{ThemeResource CaptionTextBlockStyle}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListView.ItemTemplate>
+            </ListView>
+        </Border>
+
+        <CheckBox
+            x:Name="RecycleCheckBox"
+            Content="Move to Recycle Bin"
+            Checked="OnRecycleChanged"
+            Unchecked="OnRecycleChanged" />
+
+        <TextBlock
+            x:Name="PermanentWarning"
+            Text="Selected items will be permanently deleted and cannot be undone."
+            Foreground="{ThemeResource SystemFillColorCriticalBrush}"
+            TextWrapping="Wrap"
+            Visibility="Collapsed" />
+
+        <TextBlock
+            Text="{x:Bind Note}"
+            Foreground="{ThemeResource SystemFillColorCautionBrush}"
+            TextWrapping="Wrap"
+            Visibility="{x:Bind shared:Ui.VisibleWhenText(Note)}" />
+    </StackPanel>
+</ContentDialog>

@@ -1,0 +1,229 @@
+<Page
+    x:Class="DevDuster.App.DiskMap.DiskMapPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:dm="using:DevDuster.App.DiskMap"
+    xmlns:shared="using:DevDuster.App.Shared"
+    NavigationCacheMode="Required">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="24,14,24,10" ColumnSpacing="10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <ComboBox
+                Header="Location"
+                MinWidth="180"
+                ItemsSource="{x:Bind ViewModel.Locations, Mode=OneWay}"
+                SelectedIndex="{x:Bind ViewModel.SelectedLocationIndex, Mode=TwoWay}"
+                IsEnabled="{x:Bind shared:Ui.Not(ViewModel.IsScanning), Mode=OneWay}">
+                <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="dm:DiskLocationOption">
+                        <TextBlock Text="{x:Bind Label}" />
+                    </DataTemplate>
+                </ComboBox.ItemTemplate>
+            </ComboBox>
+
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Bottom"
+                Content="Choose Folder..."
+                Click="OnChooseFolderClicked"
+                IsEnabled="{x:Bind shared:Ui.Not(ViewModel.IsScanning), Mode=OneWay}" />
+
+            <ComboBox
+                Grid.Column="2"
+                Header="Min Size"
+                SelectedIndex="{x:Bind ViewModel.SelectedMinSizeIndex, Mode=TwoWay}">
+                <ComboBoxItem Content="Off" />
+                <ComboBoxItem Content="1 MB" />
+                <ComboBoxItem Content="10 MB" />
+                <ComboBoxItem Content="100 MB" />
+                <ComboBoxItem Content="1 GB" />
+            </ComboBox>
+
+            <Button Grid.Column="3" VerticalAlignment="Bottom" Content="Excluded Folders">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="8" MinWidth="300" MaxWidth="420">
+                            <TextBlock Text="Excluded from Scans" FontWeight="SemiBold" />
+                            <TextBlock
+                                Text="Right-click a folder on the map to exclude it."
+                                Style="{ThemeResource CaptionTextBlockStyle}"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.HasExcluded), Mode=OneWay}" />
+                            <ItemsRepeater ItemsSource="{x:Bind ViewModel.ExcludedPaths}">
+                                <ItemsRepeater.Layout>
+                                    <StackLayout Spacing="4" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <Grid ColumnSpacing="8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Text="{x:Bind}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                            <Button Grid.Column="1" Content="Include" Tag="{x:Bind}" Click="OnIncludeAgainClicked" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+
+            <Button
+                Grid.Column="4"
+                VerticalAlignment="Bottom"
+                Content="{x:Bind ViewModel.UnreadableText, Mode=OneWay}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasUnreadable), Mode=OneWay}">
+                <Button.Flyout>
+                    <Flyout>
+                        <StackPanel Spacing="6" MinWidth="320" MaxWidth="480">
+                            <TextBlock Text="Unreadable Folders" FontWeight="SemiBold" />
+                            <ListView ItemsSource="{x:Bind ViewModel.UnreadablePaths, Mode=OneWay}" SelectionMode="None" MaxHeight="260">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate x:DataType="x:String">
+                                        <TextBlock Text="{x:Bind}" Style="{ThemeResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                        </StackPanel>
+                    </Flyout>
+                </Button.Flyout>
+            </Button>
+
+            <Button
+                Grid.Column="6"
+                VerticalAlignment="Bottom"
+                Content="Cancel"
+                Command="{x:Bind ViewModel.CancelScanCommand}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}" />
+
+            <Button
+                Grid.Column="7"
+                VerticalAlignment="Bottom"
+                Content="Rescan"
+                Style="{ThemeResource AccentButtonStyle}"
+                Command="{x:Bind ViewModel.StartScanCommand}"
+                Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.IsScanning), Mode=OneWay}" />
+        </Grid>
+
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,1"
+            Padding="24,6">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    Command="{x:Bind ViewModel.NavigateUpCommand}"
+                    IsEnabled="{x:Bind ViewModel.CanNavigateUp, Mode=OneWay}"
+                    AutomationProperties.Name="Go up one folder">
+                    <SymbolIcon Symbol="Up" />
+                </Button>
+
+                <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center">
+                    <ItemsRepeater ItemsSource="{x:Bind ViewModel.Trail, Mode=OneWay}">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Horizontal" Spacing="4" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="dm:BreadcrumbEntry">
+                                <Button Content="{x:Bind Name}" Tag="{x:Bind Index}" Click="OnBreadcrumbClicked" Padding="6,2" />
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </ScrollViewer>
+
+                <TextBlock
+                    Grid.Column="2"
+                    Text="{x:Bind ViewModel.CurrentSizeText, Mode=OneWay}"
+                    VerticalAlignment="Center"
+                    FontWeight="SemiBold"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" Padding="16">
+            <Canvas
+                x:Name="TreemapCanvas"
+                SizeChanged="OnTreemapSizeChanged"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasTreemap), Mode=OneWay}" />
+
+            <StackPanel
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Spacing="10"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}">
+                <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="32" Height="32" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ProgressText, Mode=OneWay}"
+                    MaxWidth="480"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </StackPanel>
+
+            <TextBlock
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center"
+                Text="{x:Bind ViewModel.EmptyMessage, Mode=OneWay}"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.HasTreemap), Mode=OneWay}" />
+        </Grid>
+
+        <Border
+            Grid.Row="3"
+            Background="{ThemeResource LayerFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+            BorderThickness="0,1,0,0"
+            Padding="16,8">
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock
+                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                    Style="{ThemeResource CaptionTextBlockStyle}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    TextTrimming="CharacterEllipsis"
+                    VerticalAlignment="Center" />
+                <Button
+                    Grid.Column="1"
+                    Content="Reveal in Explorer"
+                    Click="OnRevealSelectedClicked"
+                    IsEnabled="{x:Bind ViewModel.CanRevealSelected, Mode=OneWay}" />
+                <Button
+                    Grid.Column="2"
+                    Content="Delete..."
+                    Click="OnDeleteSelectedClicked"
+                    IsEnabled="{x:Bind ViewModel.CanDeleteSelected, Mode=OneWay}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Page>

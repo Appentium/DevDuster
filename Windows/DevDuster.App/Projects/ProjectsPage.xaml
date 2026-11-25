@@ -1,0 +1,161 @@
+<Page
+    x:Class="DevDuster.App.Projects.ProjectsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:p="using:DevDuster.App.Projects"
+    xmlns:shared="using:DevDuster.App.Shared"
+    NavigationCacheMode="Required">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="24,16,24,12" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Projects" Style="{ThemeResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+            <Button
+                Grid.Column="1"
+                VerticalAlignment="Bottom"
+                Content="Select stale"
+                Command="{x:Bind ViewModel.SelectStaleCommand}"
+                IsEnabled="{x:Bind ViewModel.CanSelectStale, Mode=OneWay}" />
+            <ComboBox
+                Grid.Column="2"
+                Header="Sort"
+                SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasResults), Mode=OneWay}">
+                <ComboBoxItem Content="Size" />
+                <ComboBoxItem Content="Name" />
+            </ComboBox>
+            <Button
+                Grid.Column="3"
+                VerticalAlignment="Bottom"
+                Content="Cancel"
+                Command="{x:Bind ViewModel.CancelScanCommand}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}" />
+            <Button
+                Grid.Column="4"
+                VerticalAlignment="Bottom"
+                Content="{x:Bind ViewModel.ScanButtonLabel, Mode=OneWay}"
+                Style="{ThemeResource AccentButtonStyle}"
+                Command="{x:Bind ViewModel.StartScanCommand}"
+                Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.IsScanning), Mode=OneWay}" />
+        </Grid>
+
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+            Padding="24,8"
+            Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="18" Height="18" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ProgressText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" Padding="24,8" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="12">
+                <TextBlock
+                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.HasResults), Mode=OneWay}" />
+
+                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Projects, Mode=OneWay}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="10" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="p:ProjectGroupViewModel">
+                            <Border Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="8" Padding="14">
+                                <StackPanel Spacing="10">
+                                    <Grid ColumnSpacing="10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <CheckBox
+                                            IsThreeState="True"
+                                            IsChecked="{x:Bind IsChecked, Mode=TwoWay}"
+                                            MinWidth="0"
+                                            VerticalAlignment="Top"
+                                            AutomationProperties.Name="Select all folders in project" />
+                                        <StackPanel Grid.Column="1" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" />
+                                                <Border Background="{ThemeResource SubtleFillColorSecondaryBrush}" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{x:Bind PlatformsText}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                </Border>
+                                                <Border
+                                                    Background="{ThemeResource SystemFillColorCautionBackgroundBrush}"
+                                                    CornerRadius="4"
+                                                    Padding="6,2"
+                                                    Visibility="{x:Bind shared:Ui.Visible(IsStale)}">
+                                                    <TextBlock Text="Stale" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource SystemFillColorCautionBrush}" FontWeight="SemiBold" />
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{x:Bind FullPath}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind FullPath}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Right" Spacing="2">
+                                            <TextBlock Text="{x:Bind SizeText, Mode=OneWay}" FontWeight="SemiBold" HorizontalAlignment="Right" />
+                                            <TextBlock Text="{x:Bind LastActivityText}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <ItemsRepeater ItemsSource="{x:Bind Folders}">
+                                        <ItemsRepeater.Layout>
+                                            <StackLayout Spacing="4" />
+                                        </ItemsRepeater.Layout>
+                                        <ItemsRepeater.ItemTemplate>
+                                            <DataTemplate x:DataType="p:ProjectFolderViewModel">
+                                                <Grid ColumnSpacing="10" Padding="24,4,4,4">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                        <ColumnDefinition Width="Auto" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <CheckBox IsChecked="{x:Bind IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind RelativePath}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <Button Grid.Column="3" Tag="{x:Bind FullPath}" Click="OnRevealClicked" AutomationProperties.Name="Reveal in Explorer" ToolTipService.ToolTip="Reveal in Explorer">
+                                                        <SymbolIcon Symbol="Folder" />
+                                                    </Button>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsRepeater.ItemTemplate>
+                                    </ItemsRepeater>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+            </StackPanel>
+        </ScrollViewer>
+
+        <shared:FooterBar
+            Grid.Row="3"
+            SelectedCount="{x:Bind ViewModel.SelectedCount, Mode=OneWay}"
+            SelectedBytes="{x:Bind ViewModel.SelectedBytes, Mode=OneWay}"
+            CanSelectAll="{x:Bind ViewModel.CanSelectAll, Mode=OneWay}"
+            CanDeselectAll="{x:Bind ViewModel.CanDeselectAll, Mode=OneWay}"
+            IsBusy="{x:Bind ViewModel.IsCleaning, Mode=OneWay}"
+            SelectAllCommand="{x:Bind ViewModel.SelectAllCommand}"
+            DeselectAllCommand="{x:Bind ViewModel.DeselectAllCommand}"
+            CleanCommand="{x:Bind CleanCommand}" />
+    </Grid>
+</Page>

@@ -1,0 +1,204 @@
+<Page
+    x:Class="DevDuster.App.Cleaner.CleanerPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:c="using:DevDuster.App.Cleaner"
+    xmlns:shared="using:DevDuster.App.Shared"
+    NavigationCacheMode="Required">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="24,16,24,12" ColumnSpacing="12">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBlock Text="Cleaner" Style="{ThemeResource TitleTextBlockStyle}" VerticalAlignment="Center" />
+            <ComboBox
+                Grid.Column="1"
+                Header="Sort"
+                SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasResults), Mode=OneWay}">
+                <ComboBoxItem Content="Size" />
+                <ComboBoxItem Content="Name" />
+            </ComboBox>
+            <Button
+                Grid.Column="2"
+                VerticalAlignment="Bottom"
+                Content="Cancel"
+                Command="{x:Bind ViewModel.CancelScanCommand}"
+                Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}" />
+            <Button
+                Grid.Column="3"
+                VerticalAlignment="Bottom"
+                Content="{x:Bind ViewModel.ScanButtonLabel, Mode=OneWay}"
+                Style="{ThemeResource AccentButtonStyle}"
+                Command="{x:Bind ViewModel.StartScanCommand}"
+                Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.IsScanning), Mode=OneWay}" />
+        </Grid>
+
+        <Border
+            Grid.Row="1"
+            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
+            Padding="24,8"
+            Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="18" Height="18" />
+                <TextBlock
+                    Text="{x:Bind ViewModel.ProgressText, Mode=OneWay}"
+                    TextTrimming="CharacterEllipsis"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    VerticalAlignment="Center" />
+            </StackPanel>
+        </Border>
+
+        <ScrollViewer Grid.Row="2" Padding="24,8" VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="16">
+                <TextBlock
+                    Text="{x:Bind ViewModel.StatusText, Mode=OneWay}"
+                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                    Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.HasResults), Mode=OneWay}" />
+
+                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Sections, Mode=OneWay}">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Spacing="16" />
+                    </ItemsRepeater.Layout>
+                    <ItemsRepeater.ItemTemplate>
+                        <DataTemplate x:DataType="c:TierSectionViewModel">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnSpacing="8">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Background="{x:Bind BadgeBackground}" CornerRadius="4" Padding="8,3">
+                                        <TextBlock Text="{x:Bind Title}" Foreground="{x:Bind BadgeForeground}" FontWeight="SemiBold" Style="{ThemeResource CaptionTextBlockStyle}" />
+                                    </Border>
+                                    <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" VerticalAlignment="Center" />
+                                </Grid>
+
+                                <ItemsRepeater ItemsSource="{x:Bind Rules}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="6" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="c:RuleGroupViewModel">
+                                            <Expander HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" IsExpanded="False">
+                                                <Expander.Header>
+                                                    <Grid ColumnSpacing="10" Padding="0,4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <CheckBox
+                                                            IsThreeState="True"
+                                                            IsChecked="{x:Bind IsChecked, Mode=TwoWay}"
+                                                            MinWidth="0"
+                                                            VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Spacing="2">
+                                                            <TextBlock Text="{x:Bind Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{x:Bind Regenerate}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </Grid>
+                                                </Expander.Header>
+                                                <ItemsRepeater ItemsSource="{x:Bind Items}">
+                                                    <ItemsRepeater.Layout>
+                                                        <StackLayout Spacing="4" />
+                                                    </ItemsRepeater.Layout>
+                                                    <ItemsRepeater.ItemTemplate>
+                                                        <DataTemplate x:DataType="shared:SelectableItem">
+                                                            <Grid ColumnSpacing="10" Padding="8,4">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <CheckBox IsChecked="{x:Bind IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center" />
+                                                                <StackPanel Grid.Column="1" Spacing="1">
+                                                                    <TextBlock Text="{x:Bind Name}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Text="{x:Bind Path}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Path}" />
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                                <Button Grid.Column="3" Tag="{x:Bind Path}" Click="OnRevealClicked" AutomationProperties.Name="Reveal in Explorer" ToolTipService.ToolTip="Reveal in Explorer">
+                                                                    <SymbolIcon Symbol="Folder" />
+                                                                </Button>
+                                                            </Grid>
+                                                        </DataTemplate>
+                                                    </ItemsRepeater.ItemTemplate>
+                                                </ItemsRepeater>
+                                            </Expander>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsRepeater.ItemTemplate>
+                </ItemsRepeater>
+
+                <Expander Header="Skipped while apps are running" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasSkipped), Mode=OneWay}">
+                    <StackPanel Spacing="8">
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.SkippedItems, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="4" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="c:SkippedItemDisplay">
+                                    <Grid ColumnSpacing="8" Padding="4">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{x:Bind Message}" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                                            <TextBlock Text="{x:Bind Path}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Tag="{x:Bind Path}" Click="OnRevealClicked" AutomationProperties.Name="Reveal in Explorer" ToolTipService.ToolTip="Reveal in Explorer">
+                                            <SymbolIcon Symbol="Folder" />
+                                        </Button>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+
+                        <ItemsRepeater ItemsSource="{x:Bind ViewModel.SkippedRules, Mode=OneWay}">
+                            <ItemsRepeater.Layout>
+                                <StackLayout Spacing="4" />
+                            </ItemsRepeater.Layout>
+                            <ItemsRepeater.ItemTemplate>
+                                <DataTemplate x:DataType="c:SkippedRuleDisplay">
+                                    <StackPanel Spacing="2" Padding="4">
+                                        <TextBlock Text="{x:Bind Title}" />
+                                        <TextBlock Text="{x:Bind Reason}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ItemsRepeater.ItemTemplate>
+                        </ItemsRepeater>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </ScrollViewer>
+
+        <shared:FooterBar
+            Grid.Row="3"
+            SelectedCount="{x:Bind ViewModel.SelectedCount, Mode=OneWay}"
+            SelectedBytes="{x:Bind ViewModel.SelectedBytes, Mode=OneWay}"
+            CanSelectAll="{x:Bind ViewModel.CanSelectAll, Mode=OneWay}"
+            CanDeselectAll="{x:Bind ViewModel.CanDeselectAll, Mode=OneWay}"
+            IsBusy="{x:Bind ViewModel.IsCleaning, Mode=OneWay}"
+            SelectAllCommand="{x:Bind ViewModel.SelectAllCommand}"
+            DeselectAllCommand="{x:Bind ViewModel.DeselectAllCommand}"
+            CleanCommand="{x:Bind CleanCommand}" />
+    </Grid>
+</Page>

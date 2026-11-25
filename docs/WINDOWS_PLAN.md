@@ -1,80 +1,85 @@
 # DevDuster for Windows: plan
 
+Updated 2026-11-25 to match Mac 0.2.0. Code is written on the Mac without a compiler; the owner builds and tests it on the Windows PC.
+
 ## Decisions
-- **Stack:** C# on .NET 10 (LTS), WinUI 3 (Windows App SDK), MVVM with CommunityToolkit.Mvvm, tests with xUnit.
-- **Repo:** this repo, new `Windows/` folder. The Mac app stays untouched.
-- **Rules:** ported to a C# catalog with Windows paths. They aren't shared with the Swift catalog, because almost every path differs.
-- **Publisher:** Appentium LLC Microsoft Store account. Reserve the name "DevDuster" first.
-- **Shipping:** an MSIX package through the Microsoft Store. The Store signs it, so no code signing certificate is needed. winget installs it from the Store source (`winget install DevDuster`), so one package covers both.
-- **Delete:** Recycle Bin by default, with permanent delete as an opt-in, same as the Mac app.
-- **Targets:** Windows 10 22H2+ and Windows 11, x64 and ARM64.
+- **Stack:** C# on .NET 10 (LTS), WinUI 3 (Windows App SDK), CommunityToolkit.Mvvm, xUnit.
+- **Repo:** this repo, `Windows/` folder. The Mac app stays untouched.
+- **Rules:** a separate C# catalog. Almost every path differs from the Mac one.
+- **Shipping:** MSIX through the Appentium LLC Microsoft Store account, which also serves `winget`. The Store signs it.
+- **Delete:** Recycle Bin by default; permanent delete is opt-in. An item Windows cannot recycle (too big, or a drive with no bin) is refused, never silently deleted.
+- **Targets:** Windows 10 22H2+ and Windows 11, x64 and ARM64. No admin rights in v1.
+- **Updates:** the Store updates the app, so there is no Sparkle equivalent.
 
 ## Layout
 ```
 Windows/
-  DevDuster.sln
-  DevDuster.Core/        net10.0, pure logic, builds and tests on the Mac too
-    Rules/   Rule, RuleCatalog, ProjectArtifactMatcher
-    Scan/    Scanner, SizeCalculator
-    Clean/   Cleaner (through an IFileRemover interface), DenyGuard, CleanLog
-  DevDuster.Platform/    net10.0-windows: RecycleBinRemover (IFileOperation), DriveService, known folders
-  DevDuster.App/         WinUI 3 app, MSIX packaged
-  DevDuster.Cli/         duster.exe (scan, clean, --json)
-  DevDuster.Core.Tests/
+  DevDuster.slnx
+  DevDuster.Core/        net10.0, no Windows APIs
+    Rules/ Scan/ Clean/ Explore/ Relocate/ Settings/ Uninstall/ Automation/
+  DevDuster.Platform/    net10.0-windows: recycle bin, allocated size, junctions, installed apps, Task Scheduler
+  DevDuster.Cli/         duster.exe: scan, clean
+  DevDuster.App/         WinUI 3, MSIX packaged
+  DevDuster.Core.Tests/  xUnit, temporary folders only
 ```
-Keeping Core free of Windows APIs means agents on the Mac can run `dotnet test` without a Windows VM. Only the App and Platform projects need Windows.
+Core gets every Windows call through a small interface: `IFileRemover`, `IFileMeasure`, `IProcessProbe`, `IJunctionMaker`.
+
+## Mac features and their Windows form
+| Mac 0.2.0 | Windows | Phase |
+|---|---|---|
+| Cleaner, 100+ rules, three tiers | Same tiers, Windows paths | W1, W2 |
+| Projects, every project type | Same markers and proofs, minus Xcode-only ones | W1, W2 |
+| Developer Tools storage split | Same analyzer, Windows roots | W3 |
+| Move Tools | Copy, verify, rename, junction, delete old; journal and undo | W3 |
+| Disk Map with size filter and excluded folders | Same; unreadable folders are listed, not counted as 0 | W3 |
+| Large Files | Same | W3 |
+| Uninstaller | Registry inventory, vendor uninstaller, leftover folders | W4 |
+| Dashboard with history | Same | W2 |
+| Sort and Select All everywhere | Same | W2, W3 |
+| Theme setting | Same (system, light, dark) | W2 |
+| Menu bar, low-space alerts | Tray icon and toast | W5 |
+| Scheduled Safe clean | Task Scheduler runs `duster clean` | W5 |
+| Empty Trash per volume | Recycle Bin size and empty per drive | W5 |
+| System section (root helper) | Elevated helper: Windows Update cache, DISM, dumps | W6 |
+| Simulators, Xcode, snapshots | Not on Windows | - |
+| Disk Digger (planned on Mac) | After it ships on Mac; Docker/WSL `.vhdx`, MySQL, XAMPP | W7 |
 
 ## Safety rules (Core)
-- Never follow junctions, symlinks or other reparse points. Windows dev setups use them a lot, and following one can delete the real target.
-- Size is allocated size (`GetCompressedFileSizeW`), and hard links are counted once.
-- DenyGuard blocks `C:\Windows`, `Program Files`, the user profile root, drive roots and anything outside a rule's allowlisted root.
-- Skip locked files and report them. Never retry them in a loop.
+- Never follow a junction, symlink, mount point or cloud placeholder. Removing a link removes only the link.
+- A path is resolved before it is judged, so a linked parent or an 8.3 short name cannot dodge the guard.
+- Size is allocated size; hard links count once per scan.
+- `DenyGuard` refuses: drive roots and top-level folders of the system drive, `Windows`, `Program Files`, `ProgramData`, the profile folder and its direct children, `AppData` and its first level, OneDrive, `.ssh`, `.gnupg`, credential stores, Store app packages, UNC and device paths, alternate data streams, and anything outside the rule's own pattern.
+- Locked files are skipped and reported, never retried.
+- Rules skip while their tool is running. Project artifacts need their marker file, and a project with recent edits is left alone.
+- Every removal is logged to `%LOCALAPPDATA%\DevDuster\Logs\clean.log`.
 
-## Windows rule catalog (v1)
-| Group | Paths |
-|---|---|
-| Gradle | `%USERPROFILE%\.gradle\caches`, `wrapper\dists` (old versions), `daemon` |
-| Android | `%LOCALAPPDATA%\Android\Sdk` (old system-images, NDKs, build-tools), `%USERPROFILE%\.android\avd` (pick each) |
-| Flutter / Dart | `%LOCALAPPDATA%\Pub\Cache` |
-| JS | `%LOCALAPPDATA%\npm-cache`, Yarn and pnpm stores |
-| .NET | `%USERPROFILE%\.nuget\packages`, `%LOCALAPPDATA%\NuGet\v3-cache` |
-| Python | `%LOCALAPPDATA%\pip\Cache` |
-| IDEs | JetBrains and VS Code caches and logs, Visual Studio `ComponentModelCache` |
-| Temp and crash | `%TEMP%`, `%LOCALAPPDATA%\CrashDumps` |
-| Projects | `build`, `.dart_tool`, `node_modules`, `bin`/`obj`, `.gradle` next to their marker files |
-| Recycle Bin | size and empty per drive |
+## Move Tools on Windows
+- Destination must be a local NTFS or ReFS drive other than the source drive.
+- Copy to `<dest>.devduster-partial`, compare every file, rename the source to `.devduster-old`, then make a junction. Junctions need no admin rights.
+- Windows refuses to rename a folder with open files; that is the in-use check. The renamed tree is compared again before the old copy goes, so a late write aborts the move.
+- The journal is written before each step, and `Recover()` runs at launch.
 
 ## Phases
-**W0: setup (owner, ~1 hour)**
-- Parallels + Windows 11 ARM on the Mac.
-- Visual Studio 2026 Community with the .NET desktop and WinUI workloads.
-- `brew install dotnet` on the Mac.
-- Reserve "DevDuster" in Partner Center.
+- **W0 setup (owner, Windows PC):** Visual Studio 2026 with .NET desktop and WinUI workloads, reserve "DevDuster" in Partner Center.
+- **W1:** Core, Platform, CLI, tests.
+- **W2:** app shell, Dashboard, Cleaner, Projects, Settings.
+- **W3:** Developer Tools, Move Tools, Disk Map, Large Files.
+- **W4:** Uninstaller.
+- **W5:** tray icon, low-space alerts, scheduled clean, Recycle Bin.
+- **Ship:** icons, Store listing, redacted screenshots, README section, `winget` check.
+- **W6, W7:** elevated helper, Disk Digger.
 
-**W1: Core + CLI.** Rule model, catalog, scanner, size, DenyGuard, cleaner, project matcher, tests. `duster scan` and `duster clean` work from a terminal.
+## Status (2026-11-25, written, never compiled)
+- **Written:** W1, W2, W3, W5 except the tray icon, and the W4 program list with vendor uninstall.
+- **Left:** W4 leftover folders, tray icon, ship, W6, W7.
 
-**W2: app.** NavigationView shell, Cleaner and Projects screens, a confirm dialog with sizes, settings, clean log.
+## First run on the Windows PC
+1. `dotnet test Windows/DevDuster.Core.Tests`. Fix compile errors first: nothing has been built yet.
+2. `dotnet run --project Windows/DevDuster.Cli -- scan` is read-only. Compare its paths with Explorer.
+3. Try a clean in a throwaway account or VM before your own profile.
+4. Open `Windows/DevDuster.slnx`, set `DevDuster.App` as startup, platform x64, run.
+5. Check deletes by hand: a junction inside a target, a file open in another app, an item larger than the Recycle Bin limit, a USB drive.
+6. Move Tools: move a small tool, undo it, then kill the app mid-copy and relaunch.
 
-**W3: disk tools.** Large and old file finder, disk map (treemap), drive overview.
-
-**W4: ship.**
-- MSIX manifest, icons, Store listing and redacted screenshots.
-- Submit to the Store, then check that `winget install` works.
-- Add a Windows section to the README.
-
-**v2 (later):**
-- Admin cleanup through an elevated helper: Windows Update cache, DISM component cleanup.
-- Compact the Docker/WSL `.vhdx`.
-- Scheduled Safe clean through Task Scheduler.
-- Tray icon and low-space alerts.
-- Uninstaller.
-
-## Store risk to check in W0
-Packaged desktop apps get their writes to `AppData` virtualized, so a delete could miss the real files. The app needs the restricted capability `unvirtualizedResources` with `desktop6:FileSystemWriteVirtualization` disabled, plus `runFullTrust`. Restricted capabilities need a written reason at Store review ("developer cache cleaner that removes files the user picks"). Build a tiny test package in W0 that deletes a file in `%LOCALAPPDATA%` and confirm it is really gone before W1 starts.
-
-Fallback if the Store refuses it: ship an unpackaged installer through winget and GitHub, signed with Azure Artifact Signing (about $10 a month).
-
-## Workers
-- **W1 Core:** Antigravity `gemini-4-hydrogen-high`. The brief carries exact signatures and test cases. Cleaner, DenyGuard and the reparse-point logic get an Opus review because they delete files.
-- **W2 and W3 UI:** a Sonnet side session. It needs the Windows VM to build, so the owner runs builds or a Windows-capable session does.
-- **W4 listing text and README:** a free opencode model.
+## Store risk
+Packaged apps get `AppData` writes virtualized, so a delete could miss the real file. The manifest turns that off with `desktop6:FileSystemWriteVirtualization` and the restricted capabilities `unvirtualizedResources` and `runFullTrust`. Store review needs a written reason ("developer cache cleaner that removes files the user picks"). Confirm on the PC that a delete in `%LOCALAPPDATA%` is real. Fallback: an unpackaged installer on winget and GitHub, signed with Azure Artifact Signing.

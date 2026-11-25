@@ -1,0 +1,15 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="ARM64" />
+  </Configurations>
+  <Project Path="DevDuster.Core/DevDuster.Core.csproj" />
+  <Project Path="DevDuster.Platform/DevDuster.Platform.csproj" />
+  <Project Path="DevDuster.Cli/DevDuster.Cli.csproj" />
+  <Project Path="DevDuster.Core.Tests/DevDuster.Core.Tests.csproj" />
+  <Project Path="DevDuster.App/DevDuster.App.csproj">
+    <Platform Solution="*|x64" Project="x64" />
+    <Platform Solution="*|ARM64" Project="ARM64" />
+    <Deploy />
+  </Project>
+</Solution>
