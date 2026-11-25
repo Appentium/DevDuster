@@ -15,6 +15,11 @@ struct CleanerView: View {
                 Divider()
             }
 
+            if !model.items.isEmpty {
+                controlsBar
+                Divider()
+            }
+
             content
             Divider()
 
@@ -27,7 +32,7 @@ struct CleanerView: View {
                 onClean: model.cleanSession.requestConfirmation
             )
         }
-        .navigationTitle(title)
+        .navigationTitle("Cleaner")
         .toolbar {
             ToolbarItem {
                 if model.isScanning {
@@ -50,18 +55,20 @@ struct CleanerView: View {
         )
     }
 
-    private var title: String {
-        switch model.grouping {
-        case .tier: "Cleaner"
-        case .platform: "Developer Tools"
+    private var controlsBar: some View {
+        HStack(spacing: 10) {
+            SelectAllButtons(
+                canSelectAll: model.selectedIDs.count < model.items.count && !model.isScanning,
+                canDeselectAll: !model.selectedIDs.isEmpty && !model.isScanning,
+                onSelectAll: model.selectAll,
+                onDeselectAll: model.deselectAll
+            )
+            Spacer()
+            SizeSortPicker(order: $model.sortOrder, options: SizeSortOrder.allCases)
         }
-    }
-
-    private var scanDescription: String {
-        switch model.grouping {
-        case .tier: "Scan your home folder and mounted volumes for caches, logs, and stale build artifacts."
-        case .platform: "Scan caches and build output from Xcode, Android, JavaScript, Python, Rust, Go, Java, editors, AI tools and more."
-        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.bar)
     }
 
     @ViewBuilder
@@ -81,9 +88,9 @@ struct CleanerView: View {
                 ContentUnavailableView {
                     Label("Ready to Scan", systemImage: "magnifyingglass")
                 } description: {
-                    Text(scanDescription)
+                    Text("Scan your home folder and mounted volumes for caches, logs, developer tools and stale build artifacts.")
                 } actions: {
-                    Button("Scan", action: model.startScan)
+                    Button("Scan") { model.startScan() }
                         .buttonStyle(.borderedProminent)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -106,7 +113,17 @@ struct CleanerView: View {
                 ForEach(model.sections) { section in
                     Section {
                         ForEach(section.rules) { ruleGroup in
-                            RuleHeaderRow(ruleGroup: ruleGroup, showsTier: model.grouping == .platform)
+                            RuleHeaderRow(
+                                ruleGroup: ruleGroup,
+                                selections: ruleGroup.items.map { item in
+                                    Binding(
+                                        get: { model.selectedIDs.contains(item.id) },
+                                        set: { isOn in
+                                            if isOn != model.selectedIDs.contains(item.id) { model.toggleItem(item) }
+                                        }
+                                    )
+                                }
+                            )
                             ForEach(ruleGroup.items) { item in
                                 ScanItemRow(
                                     item: item,
@@ -136,58 +153,14 @@ struct CleanerView: View {
     }
 }
 
-private struct ScanProgressBanner: View {
-    let phase: ScanPhase
-    let currentPath: String
-    let onCancel: () -> Void
-
-    private var phaseLabel: String {
-        switch phase {
-        case .rules: "Scanning rules..."
-        case .projects: "Scanning projects..."
-        case .measuring: "Measuring sizes..."
-        }
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ProgressView()
-                .controlSize(.small)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(phaseLabel)
-                    .font(.subheadline.weight(.medium))
-                if !currentPath.isEmpty {
-                    Text(currentPath)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-            Spacer()
-            Button("Cancel", action: onCancel)
-                .buttonStyle(.bordered)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(.bar)
-    }
-}
-
 private struct RuleSectionHeader: View {
     let section: CleanerModel.RuleSection
 
     var body: some View {
         HStack {
-            switch section.kind {
-            case .tier(let tier):
-                Text(tier.title)
-                    .font(.headline)
-                TierBadge(tier: tier)
-            case .platform(let platform):
-                Label(platform.title, systemImage: platform.systemImage)
-                    .font(.headline)
-            }
+            Text(section.tier.title)
+                .font(.headline)
+            StatusBadge(title: section.tier.title, color: section.tier.color)
             Spacer()
             Text(ByteFormatter.string(section.totalBytes))
                 .font(.subheadline.weight(.medium))
@@ -196,85 +169,32 @@ private struct RuleSectionHeader: View {
     }
 }
 
-private struct TierBadge: View {
-    let tier: Tier
-
-    var body: some View {
-        Text(tier.title)
-            .font(.caption2.weight(.semibold))
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .foregroundStyle(tier.color)
-            .background(tier.color.opacity(0.14), in: Capsule())
-    }
-}
-
-private extension Rule.Platform {
-    var title: String {
-        switch self {
-        case .apple: "Apple"
-        case .android: "Android"
-        case .flutter: "Flutter & Dart"
-        case .javascript: "JavaScript"
-        case .python: "Python"
-        case .rust: "Rust"
-        case .go: "Go"
-        case .jvm: "Java & Kotlin"
-        case .php: "PHP"
-        case .ruby: "Ruby"
-        case .dotnet: ".NET"
-        case .otherLanguages: "Other Languages"
-        case .editors: "Editors & IDEs"
-        case .aiTools: "AI Tools"
-        case .aiModels: "AI Models"
-        case .gameEngines: "Game Engines"
-        case .devTools: "Build & DevOps"
-        }
-    }
-
-    var systemImage: String {
-        switch self {
-        case .apple: "apple.logo"
-        case .android: "smartphone"
-        case .flutter: "bird"
-        case .javascript: "curlybraces"
-        case .python: "chevron.left.forwardslash.chevron.right"
-        case .rust: "gearshape.2"
-        case .go: "hare"
-        case .jvm: "cup.and.saucer"
-        case .php: "server.rack"
-        case .ruby: "diamond"
-        case .dotnet: "number"
-        case .otherLanguages: "character.book.closed"
-        case .editors: "macwindow"
-        case .aiTools: "sparkles"
-        case .aiModels: "brain"
-        case .gameEngines: "gamecontroller"
-        case .devTools: "shippingbox"
-        }
-    }
-}
-
 private struct RuleHeaderRow: View {
     let ruleGroup: CleanerModel.RuleGroup
-    let showsTier: Bool
+    let selections: [Binding<Bool>]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack {
-                Text(ruleGroup.rule.title)
-                    .font(.subheadline.weight(.semibold))
-                if showsTier {
-                    TierBadge(tier: ruleGroup.rule.tier)
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            // Shows the mixed state when only some items in the group are selected.
+            Toggle(sources: selections, isOn: \.self) {
+                EmptyView()
+            }
+            .toggleStyle(.checkbox)
+            .labelsHidden()
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack {
+                    Text(ruleGroup.rule.title)
+                        .font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Text(ByteFormatter.string(ruleGroup.totalBytes))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Text(ByteFormatter.string(ruleGroup.totalBytes))
-                    .font(.subheadline)
+                Text(ruleGroup.rule.regenerate)
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            Text(ruleGroup.rule.regenerate)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(.top, 4)
     }
@@ -294,7 +214,7 @@ private struct ScanItemRow: View {
             .labelsHidden()
 
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.projectName ?? item.url.lastPathComponent)
+                Text(item.displayName)
                     .font(.body)
                     .lineLimit(1)
                 Text((item.workspace ?? item.url).path(percentEncoded: false))

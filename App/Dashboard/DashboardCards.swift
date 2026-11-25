@@ -297,7 +297,7 @@ struct MacInfoCard: View {
 struct QuickActionsCard: View {
     let onOpen: (SidebarSection) -> Void
 
-    private let sections: [SidebarSection] = [.cleaner, .developerJunk, .uninstaller, .largeFiles, .diskMap, .system]
+    private let sections: [SidebarSection] = [.cleaner, .developerTools, .uninstaller, .largeFiles, .diskMap, .system]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

@@ -8,7 +8,8 @@ struct RootView: View {
     @State private var fdaModel = FullDiskAccessModel()
     @State private var dashboardModel = DashboardModel()
     @State private var uninstallerModel = UninstallerModel()
-    @State private var developerJunkModel = CleanerModel(grouping: .platform)
+    @State private var developerCleanerModel = CleanerModel(developerOnly: true)
+    @State private var devStorageModel = DevStorageModel()
     @State private var projectsModel = ProjectsModel()
     @State private var diskMapModel = DiskMapModel()
     @State private var largeFilesModel = LargeFilesModel()
@@ -53,8 +54,8 @@ struct RootView: View {
             CleanerView(model: cleanerModel)
         case .uninstaller:
             UninstallerView(model: uninstallerModel)
-        case .developerJunk:
-            CleanerView(model: developerJunkModel)
+        case .developerTools:
+            DeveloperToolsView(cleaner: developerCleanerModel, storage: devStorageModel)
         case .projects:
             ProjectsView(model: projectsModel)
         case .diskMap:

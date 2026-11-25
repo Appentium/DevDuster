@@ -45,7 +45,9 @@ final class CleanSessionModel {
         isCleaning = true
         emptiedVolumeIDs = []
         let mode: CleanMode = moveToTrash ? .trash : .delete
-        let results = await Cleaner(catalog: catalog).clean(items: items, mode: mode)
+        // An external drive scan uses the drive as the catalog home, but the log stays in the user's own Library.
+        let log = CleanLog(home: FileManager.default.homeDirectoryForCurrentUser)
+        let results = await Cleaner(catalog: catalog, log: log).clean(items: items, mode: mode)
         let volumeService = VolumeService()
         let volumes = mode == .trash ? await Self.loadVolumes(using: volumeService) : []
 

@@ -13,28 +13,18 @@ final class CleanerModel {
         var totalBytes: Int64 { items.reduce(0) { $0 + $1.bytes } }
     }
 
-    enum Grouping {
-        case tier, platform
-    }
-
     struct RuleSection: Identifiable {
-        enum Kind: Hashable {
-            case tier(Tier)
-            case platform(Rule.Platform)
-        }
-
-        let kind: Kind
+        let tier: Tier
         let rules: [RuleGroup]
 
-        var id: Kind { kind }
+        var id: Tier { tier }
         var totalBytes: Int64 { rules.reduce(0) { $0 + $1.totalBytes } }
     }
 
-    let grouping: Grouping
-    private let catalog: RuleCatalog
+    private let developerOnly: Bool
+    private var catalog: RuleCatalog
     private let settings = DusterSettings()
     private var scanTask: Task<Void, Never>?
-    private var manuallyDeselectedIDs: Set<ScanItem.ID> = []
 
     private(set) var isScanning = false
     private(set) var hasScanned = false
@@ -45,11 +35,14 @@ final class CleanerModel {
     private(set) var skipped: [SkippedRule] = []
     private(set) var skippedItems: [SkippedItem] = []
     var selectedIDs: Set<ScanItem.ID> = []
+    var sortOrder = SizeSortOrder.standard {
+        didSet { rebuildGroups() }
+    }
     var cleanSession = CleanSessionModel()
 
-    init(grouping: Grouping = .tier) {
-        self.grouping = grouping
-        catalog = RuleCatalog(developerOnly: grouping == .platform)
+    init(developerOnly: Bool = false) {
+        self.developerOnly = developerOnly
+        catalog = RuleCatalog(developerOnly: developerOnly)
     }
 
     var selectedItems: [ScanItem] {
@@ -60,7 +53,7 @@ final class CleanerModel {
         selectedItems.reduce(0) { $0 + $1.bytes }
     }
 
-    func startScan() {
+    func startScan(home: URL = FileManager.default.homeDirectoryForCurrentUser, scope: [URL]? = nil) {
         scanTask?.cancel()
         cleanSession.dismissSummary()
         items = []
@@ -68,14 +61,14 @@ final class CleanerModel {
         skipped = []
         skippedItems = []
         selectedIDs = []
-        manuallyDeselectedIDs = []
         scanPhase = .rules
         currentPath = ""
         hasScanned = false
         isScanning = true
 
+        catalog = RuleCatalog(home: home, developerOnly: developerOnly)
         let catalog = self.catalog
-        let options = settings.scanOptions()
+        let options = settings.scanOptions(scope: scope)
         scanTask = Task { [weak self] in
             for await event in DusterScanner(catalog: catalog).scan(options) {
                 guard let self, !Task.isCancelled else { break }
@@ -96,11 +89,26 @@ final class CleanerModel {
     func toggleItem(_ item: ScanItem) {
         if selectedIDs.contains(item.id) {
             selectedIDs.remove(item.id)
-            manuallyDeselectedIDs.insert(item.id)
         } else {
             selectedIDs.insert(item.id)
-            manuallyDeselectedIDs.remove(item.id)
         }
+    }
+
+    func toggleItems(_ group: [ScanItem]) {
+        let ids = Set(group.map(\.id))
+        if ids.isSubset(of: selectedIDs) {
+            selectedIDs.subtract(ids)
+        } else {
+            selectedIDs.formUnion(ids)
+        }
+    }
+
+    func selectAll() {
+        selectedIDs = Set(items.map(\.id))
+    }
+
+    func deselectAll() {
+        selectedIDs = []
     }
 
     func cleanSelected() async {
@@ -118,38 +126,23 @@ final class CleanerModel {
             currentPath = path
         case .item(let item):
             items.append(item)
-            if item.rule.tier == .safe, !manuallyDeselectedIDs.contains(item.id) {
-                selectedIDs.insert(item.id)
-            }
             rebuildGroups()
         case .finished(let report):
             items = report.items
             skipped = report.skipped
             skippedItems = report.skippedItems
-            for item in report.items where item.rule.tier == .safe && !manuallyDeselectedIDs.contains(item.id) {
-                selectedIDs.insert(item.id)
-            }
             hasScanned = true
             rebuildGroups()
         }
     }
 
     private func rebuildGroups() {
-        let kinds: [RuleSection.Kind] = switch grouping {
-        case .tier: Tier.allCases.map { .tier($0) }
-        case .platform: Rule.Platform.allCases.map { .platform($0) }
+        let built = Tier.allCases.compactMap { tier in
+            let rules = ruleGroups(in: items.filter { $0.rule.tier == tier })
+            return rules.isEmpty ? nil : RuleSection(tier: tier, rules: rules)
         }
-        sections = kinds.compactMap { kind in
-            let rules = ruleGroups(in: items.filter { sectionKind(of: $0.rule) == kind })
-            return rules.isEmpty ? nil : RuleSection(kind: kind, rules: rules)
-        }
-    }
-
-    private func sectionKind(of rule: Rule) -> RuleSection.Kind? {
-        switch grouping {
-        case .tier: .tier(rule.tier)
-        case .platform: rule.platform.map { .platform($0) }
-        }
+        // Sections keep their tier order unless sorting by size.
+        sections = sortOrder == .size ? built.sorted { $0.totalBytes > $1.totalBytes } : built
     }
 
     private func ruleGroups(in items: [ScanItem]) -> [RuleGroup] {
@@ -163,6 +156,14 @@ final class CleanerModel {
                 buckets.append([item])
             }
         }
-        return buckets.compactMap { bucket in bucket.first.map { RuleGroup(rule: $0.rule, items: bucket) } }
+        let groups = buckets.compactMap { bucket in
+            bucket.first.map { RuleGroup(rule: $0.rule, items: sortOrder.sorted(bucket, bytes: \.bytes, name: \.displayName)) }
+        }
+        guard sortOrder == .standard else { return sortOrder.sorted(groups, bytes: \.totalBytes, name: \.rule.title) }
+        return groups.enumerated().sorted { first, second in
+            let firstRank = Tier.allCases.firstIndex(of: first.element.rule.tier) ?? 0
+            let secondRank = Tier.allCases.firstIndex(of: second.element.rule.tier) ?? 0
+            return firstRank != secondRank ? firstRank < secondRank : first.offset < second.offset
+        }.map(\.element)
     }
 }
