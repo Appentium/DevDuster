@@ -45,6 +45,9 @@ struct SystemView: View {
         .navigationTitle("System")
         .toolbar {
             ToolbarItem {
+                SizeSortPicker(order: $model.sortOrder)
+            }
+            ToolbarItem {
                 Button("Refresh", systemImage: "arrow.clockwise") { Task { await model.refresh() } }
                     .disabled(model.isLoading)
             }
@@ -133,6 +136,15 @@ private struct CategorySection: View {
                 Spacer()
                 if model.cleaningCategory == category {
                     ProgressView().controlSize(.small)
+                }
+                if category.isSelectable {
+                    let selectedCount = model.selection[category]?.count ?? 0
+                    SelectAllButtons(
+                        canSelectAll: selectedCount < model.entries(for: category).count,
+                        canDeselectAll: selectedCount > 0,
+                        onSelectAll: { model.selectAll(in: category) },
+                        onDeselectAll: { model.deselectAll(in: category) }
+                    )
                 }
                 Button(category.isSelectable ? "Clean Selected" : "Clean All") { model.requestClean(category) }
                     .tint(.red)

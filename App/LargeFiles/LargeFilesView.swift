@@ -84,6 +84,13 @@ struct LargeFilesView: View {
             }
             .frame(maxWidth: 190)
 
+            SelectAllButtons(
+                canSelectAll: model.selection.count < model.files.count,
+                canDeselectAll: !model.selection.isEmpty,
+                onSelectAll: model.selectAll,
+                onDeselectAll: model.deselectAll
+            )
+
             Spacer()
 
             if model.scanning {

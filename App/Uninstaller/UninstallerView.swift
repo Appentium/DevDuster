@@ -82,6 +82,7 @@ struct UninstallerView: View {
                     .toggleStyle(.checkbox)
                     .disabled(model.visibleCandidates.isEmpty)
                 Spacer()
+                SizeSortPicker(order: $model.sortOrder)
                 Text("\(model.checkedCandidates.count) of \(model.visibleCandidates.count) checked")
                     .font(.caption)
                     .foregroundStyle(.secondary)

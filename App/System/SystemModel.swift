@@ -75,6 +75,7 @@ final class SystemModel {
     private(set) var loadErrors: [SystemCategory: String] = [:]
     private(set) var lastResult: PrivilegedCleanResult?
     var selection: [SystemCategory: Set<String>] = [:]
+    var sortOrder = SizeSortOrder.size
     var pending: PendingSystemClean?
     var actionError: String?
 
@@ -83,7 +84,15 @@ final class SystemModel {
     }
 
     func entries(for category: SystemCategory) -> [SystemEntry] {
-        entries[category] ?? []
+        sortOrder.sorted(entries[category] ?? [], bytes: { $0.bytes ?? 0 }, name: \.id)
+    }
+
+    func selectAll(in category: SystemCategory) {
+        selection[category] = Set(entries(for: category).map(\.id))
+    }
+
+    func deselectAll(in category: SystemCategory) {
+        selection[category] = []
     }
 
     func isSelected(_ entry: SystemEntry, in category: SystemCategory) -> Bool {

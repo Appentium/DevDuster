@@ -108,6 +108,14 @@ import DusterCore
         pendingDeletion.reduce(0) { $0 + $1.bytes }
     }
 
+    func selectAll() {
+        selection = Set(files.map(\.id))
+    }
+
+    func deselectAll() {
+        selection = []
+    }
+
     func scanIfNeeded() {
         guard !hasScanned, !scanning else { return }
         startScan()

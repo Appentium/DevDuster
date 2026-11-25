@@ -24,17 +24,19 @@ final class UninstallerModel {
     var searchText = ""
     var selectedID: UninstallCandidate.ID?
     var checkedIDs: Set<UninstallCandidate.ID> = []
+    var sortOrder = SizeSortOrder.size
     var moveToTrash = true
     var isConfirming = false
     var needsHelperApproval = false
     var outcome: UninstallOutcome?
 
     var visibleCandidates: [UninstallCandidate] {
-        candidates.filter { candidate in
+        let matching = candidates.filter { candidate in
             candidate.kind == kind && (searchText.isEmpty
                 || candidate.title.localizedCaseInsensitiveContains(searchText)
                 || candidate.detail.localizedCaseInsensitiveContains(searchText))
         }
+        return sortOrder.sorted(matching, bytes: bytes(for:), name: \.title)
     }
 
     var selected: UninstallCandidate? {
