@@ -4,11 +4,11 @@ enum SidebarSection: String, CaseIterable, Identifiable, Hashable {
     case dashboard = "Dashboard"
     case cleaner = "Cleaner"
     case uninstaller = "Uninstaller"
+    case projects = "Projects"
+    case largeFiles = "Large Files"
     case developerTools = "Developer Tools"
     case moveTools = "Move Tools"
-    case projects = "Projects"
     case diskMap = "Disk Map"
-    case largeFiles = "Large Files"
     case system = "System"
 
     var id: Self { self }
