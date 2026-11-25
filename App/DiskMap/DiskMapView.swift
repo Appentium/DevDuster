@@ -3,6 +3,7 @@ import SwiftUI
 
 struct DiskMapView: View {
     @Bindable var model: DiskMapModel
+    @State private var showingFilters = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -48,6 +49,8 @@ struct DiskMapView: View {
 
             Button("Choose Folder…") { model.chooseFolder() }
 
+            filtersMenu
+
             Toggle("Remember", isOn: $model.remembersLocation)
                 .toggleStyle(.checkbox)
                 .help("Open this location next time")
@@ -72,6 +75,16 @@ struct DiskMapView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
+    }
+
+    private var filtersMenu: some View {
+        let activeCount = model.excludedPaths.count + (model.minimumBytes > 0 ? 1 : 0)
+        return Button(activeCount == 0 ? "Filters" : "Filters (\(activeCount))") {
+            showingFilters.toggle()
+        }
+        .popover(isPresented: $showingFilters, arrowEdge: .bottom) {
+            DiskMapFiltersView(model: model)
+        }
     }
 
     private var breadcrumbBar: some View {
@@ -118,33 +131,34 @@ struct DiskMapView: View {
             if current.children.allSatisfy({ $0.bytes == 0 }) {
                 ContentUnavailableView("Empty Folder", systemImage: "folder", description: Text("No allocated files inside \(current.name)."))
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if model.visibleChildren.isEmpty {
+                ContentUnavailableView("Nothing This Big", systemImage: "line.3.horizontal.decrease.circle", description: Text("Every item in \(current.name) is smaller than \(ByteFormatter.string(model.minimumBytes))."))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 GeometryReader { proxy in
-                    let canvas = TreemapLayout.canvasSize(for: current.children, viewport: proxy.size)
-                    let tiles = TreemapLayout.tiles(for: current.children, in: CGRect(origin: .zero, size: canvas))
-                    ScrollView(.horizontal) {
-                        ZStack(alignment: .topLeading) {
-                            ForEach(tiles) { tile in
-                                TreemapTileView(
-                                    tile: tile,
-                                    isHovered: model.hoveredNode?.id == tile.id,
-                                    moveToTrash: model.cleanSession.moveToTrash,
-                                    onHover: { hovering in
-                                        if hovering {
-                                            model.hoveredNode = tile.node
-                                        } else if model.hoveredNode?.id == tile.id {
-                                            model.hoveredNode = nil
-                                        }
-                                    },
-                                    onTap: { model.drillInto(tile.node) },
-                                    onReveal: { model.revealInFinder(tile.node) },
-                                    onDelete: { model.requestDelete(tile.node) }
-                                )
-                            }
+                    let tiles = TreemapLayout.tiles(for: model.visibleChildren, in: CGRect(origin: .zero, size: proxy.size))
+                    ZStack(alignment: .topLeading) {
+                        ForEach(tiles) { tile in
+                            TreemapTileView(
+                                tile: tile,
+                                isHovered: model.hoveredNode?.id == tile.id,
+                                moveToTrash: model.cleanSession.moveToTrash,
+                                onHover: { hovering in
+                                    if hovering {
+                                        model.hoveredNode = tile.node
+                                    } else if model.hoveredNode?.id == tile.id {
+                                        model.hoveredNode = nil
+                                    }
+                                },
+                                onTap: { model.drillInto(tile.node) },
+                                onReveal: { model.revealInFinder(tile.node) },
+                                onExclude: { model.exclude(tile.node) },
+                                onDelete: { model.requestDelete(tile.node) }
+                            )
                         }
-                        .frame(width: canvas.width, height: canvas.height, alignment: .topLeading)
                     }
-                    .wheelScrollsHorizontally()
+                    .frame(width: proxy.size.width, height: proxy.size.height, alignment: .topLeading)
+                    .clipped()
                 }
                 .padding(8)
             }
@@ -189,6 +203,10 @@ struct DiskMapView: View {
             } else if let current = model.currentNode {
                 Text("\(current.children.count) items in \(current.name)")
                     .foregroundStyle(.secondary)
+                if model.hiddenCount > 0 {
+                    Text("\(model.hiddenCount) hidden by size filter")
+                        .foregroundStyle(.tertiary)
+                }
             } else {
                 Text("Ready")
                     .foregroundStyle(.secondary)
@@ -208,6 +226,7 @@ private struct TreemapTileView: View {
     let onHover: (Bool) -> Void
     let onTap: () -> Void
     let onReveal: () -> Void
+    let onExclude: () -> Void
     let onDelete: () -> Void
 
     private static let palette: [Color] = [
@@ -252,6 +271,9 @@ private struct TreemapTileView: View {
         .contextMenu {
             if tile.node.url != nil {
                 Button("Reveal in Finder", action: onReveal)
+                if tile.node.isDirectory {
+                    Button("Exclude from Scans", action: onExclude)
+                }
                 Divider()
                 Button(moveToTrash ? "Move to Trash…" : "Delete Permanently…", role: .destructive, action: onDelete)
             }

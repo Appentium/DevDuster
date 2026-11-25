@@ -14,20 +14,6 @@ enum TreemapLayout {
         let area: Double
     }
 
-    private static let minTileArea: CGFloat = 90 * 48
-    private static let maxWidthMultiple: CGFloat = 8
-    private static let minCanvasWidth: CGFloat = 640
-
-    static func canvasSize(for nodes: [DiskNode], viewport: CGSize) -> CGSize {
-        let height = viewport.height
-        let baseWidth = max(viewport.width, minCanvasWidth)
-        let sizes = nodes.map(\.bytes).filter { $0 > 0 }
-        guard let smallest = sizes.min(), height > 1 else { return CGSize(width: baseWidth, height: height) }
-        let total = CGFloat(sizes.reduce(0, +))
-        let needed = total / CGFloat(smallest) * minTileArea / height
-        return CGSize(width: min(max(baseWidth, needed), baseWidth * maxWidthMultiple), height: height)
-    }
-
     static func tiles(for nodes: [DiskNode], in bounds: CGRect) -> [TreemapTile] {
         let positive = nodes.filter { $0.bytes > 0 }.sorted { $0.bytes > $1.bytes }
         guard !positive.isEmpty, bounds.width > 1, bounds.height > 1 else { return [] }

@@ -66,6 +66,18 @@ import Testing
         #expect(tree.children.contains { $0.name == "visible" })
     }
 
+    @Test func skipsExcludedFolders() async throws {
+        let fixture = try Fixture()
+        let kept = try fixture.file("root/kept/data.bin", bytes: 1_050_000)
+        try fixture.file("root/skipped/data.bin", bytes: 1_050_000)
+        let skipped = try #require(FilePath.real(fixture.url("root/skipped")))
+
+        let tree = try #require(await DiskMapBuilder().run(root: fixture.url("root"), excluding: [skipped.filePath]))
+
+        #expect(tree.bytes == (try fixture.allocated(kept)))
+        #expect(tree.children.map(\.name) == ["kept"])
+    }
+
     @Test func streamEmitsFinishedNode() async throws {
         let fixture = try Fixture()
         let file = try fixture.file("root/file.bin", bytes: 16_384)

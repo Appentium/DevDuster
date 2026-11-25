@@ -35,6 +35,9 @@ import DusterCore
 
     private static let rememberKey = "diskMap.rememberLocation"
     private static let lastLocationKey = "diskMap.lastLocation"
+    private static let excludedPathsKey = "diskMap.excludedPaths"
+    private static let minimumBytesKey = "diskMap.minimumBytes"
+    static let minimumSizeOptions: [Int64] = [0, 10_000_000, 100_000_000, 1_000_000_000, 10_000_000_000]
 
     private let catalog = RuleCatalog()
     private let volumeService = VolumeService()
@@ -52,6 +55,15 @@ import DusterCore
     var scannedItems = 0
     var pendingDelete: DiskNode?
     var cleanSession = CleanSessionModel()
+    var excludedPaths: [String] {
+        didSet { defaults.set(excludedPaths, forKey: Self.excludedPathsKey) }
+    }
+    var minimumBytes: Int64 {
+        didSet {
+            defaults.set(minimumBytes, forKey: Self.minimumBytesKey)
+            hoveredNode = nil
+        }
+    }
     var remembersLocation: Bool {
         didSet {
             defaults.set(remembersLocation, forKey: Self.rememberKey)
@@ -66,11 +78,21 @@ import DusterCore
         selectedSource = .home(home)
         volumes = volumeService.volumes()
         remembersLocation = defaults.bool(forKey: Self.rememberKey)
+        excludedPaths = defaults.stringArray(forKey: Self.excludedPathsKey) ?? []
+        minimumBytes = Int64(defaults.integer(forKey: Self.minimumBytesKey))
         if remembersLocation { restoreLocation() }
     }
 
     var currentNode: DiskNode? {
         trail.last ?? rootNode
+    }
+
+    var visibleChildren: [DiskNode] {
+        currentNode?.children.filter { $0.bytes >= minimumBytes } ?? []
+    }
+
+    var hiddenCount: Int {
+        (currentNode?.children.count ?? 0) - visibleChildren.count
     }
 
     var availableSources: [RootSource] {
@@ -142,7 +164,7 @@ import DusterCore
 
         let targetURL = selectedSource.url
         scanTask = Task {
-            for await event in DiskMapBuilder().build(root: targetURL) {
+            for await event in DiskMapBuilder().build(root: targetURL, excluding: Set(excludedPaths)) {
                 switch event {
                 case .progress(let path, let bytes, let items):
                     progressPath = path
@@ -188,6 +210,16 @@ import DusterCore
         FinderActions.reveal(url)
     }
 
+    func exclude(_ node: DiskNode) {
+        guard let url = node.url, node.isDirectory, !excludedPaths.contains(url.path) else { return }
+        excludedPaths.append(url.path)
+        removeFromTree(node)
+    }
+
+    func includeAgain(_ path: String) {
+        excludedPaths.removeAll { $0 == path }
+    }
+
     func requestDelete(_ node: DiskNode) {
         guard node.url != nil else { return }
         pendingDelete = node
@@ -200,8 +232,12 @@ import DusterCore
 
         let item = ScanItem.userSelected(url: url, bytes: node.bytes)
         let cleanedIDs = await cleanSession.clean(items: [item], catalog: catalog)
-        guard !cleanedIDs.isEmpty, let rootNode else { return }
+        guard !cleanedIDs.isEmpty else { return }
+        removeFromTree(node)
+    }
 
+    private func removeFromTree(_ node: DiskNode) {
+        guard let rootNode else { return }
         let updated = rootNode.removing(id: node.id)
         self.rootNode = updated
         trail = Self.reconcile(trail: trail, inside: updated)

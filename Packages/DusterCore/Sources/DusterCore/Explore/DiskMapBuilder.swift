@@ -63,10 +63,10 @@ public struct DiskMapBuilder: Sendable {
 
     public init() {}
 
-    public func build(root: URL) -> AsyncStream<DiskMapEvent> {
+    public func build(root: URL, excluding excludedPaths: Set<String> = []) -> AsyncStream<DiskMapEvent> {
         AsyncStream { continuation in
             let task = Task {
-                if let node = await perform(root: root, emit: { continuation.yield($0) }) {
+                if let node = await perform(root: root, excluding: excludedPaths, emit: { continuation.yield($0) }) {
                     continuation.yield(.finished(node))
                 }
                 continuation.finish()
@@ -75,11 +75,11 @@ public struct DiskMapBuilder: Sendable {
         }
     }
 
-    @concurrent public func run(root: URL) async -> DiskNode? {
-        await perform(root: root) { _ in }
+    @concurrent public func run(root: URL, excluding excludedPaths: Set<String> = []) async -> DiskNode? {
+        await perform(root: root, excluding: excludedPaths) { _ in }
     }
 
-    @concurrent private func perform(root: URL, emit: @Sendable (DiskMapEvent) -> Void) async -> DiskNode? {
+    @concurrent private func perform(root: URL, excluding excludedPaths: Set<String>, emit: @Sendable (DiskMapEvent) -> Void) async -> DiskNode? {
         let resolvedRoot = FilePath.real(root) ?? root
         guard let rootInfo = FilePath.status(resolvedRoot), !FilePath.isSymlink(rootInfo) else { return nil }
         if !FilePath.isDirectory(rootInfo) {
@@ -114,7 +114,8 @@ public struct DiskMapBuilder: Sendable {
             switch info {
             case FTS_D:
                 // Firmlinks share st_dev with /, so skip Data to avoid double-counting.
-                if entry.pointee.fts_level > 0 && resolvedRoot.filePath == "/" && path == "/System/Volumes/Data" {
+                let isDataFirmlinkRoot = resolvedRoot.filePath == "/" && path == "/System/Volumes/Data"
+                if entry.pointee.fts_level > 0 && (isDataFirmlinkRoot || excludedPaths.contains(path)) {
                     fts_set(fts, entry, FTS_SKIP)
                     continue
                 }
