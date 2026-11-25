@@ -110,6 +110,33 @@
                 </Button.Flyout>
             </Button>
 
+            <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="10" VerticalAlignment="Bottom">
+                <Button Content="Insights" Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasInsights), Mode=OneWay}">
+                    <Button.Flyout>
+                        <Flyout>
+                            <ScrollViewer MaxHeight="420" Width="440">
+                                <ItemsRepeater ItemsSource="{x:Bind ViewModel.Insights, Mode=OneWay}">
+                                    <ItemsRepeater.Layout>
+                                        <StackLayout Spacing="12" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="dm:InsightRow">
+                                            <StackPanel Spacing="2">
+                                                <TextBlock Text="{x:Bind Heading}" FontWeight="SemiBold" TextWrapping="Wrap" />
+                                                <TextBlock Text="{x:Bind Path}" Style="{ThemeResource CaptionTextBlockStyle}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Path}" />
+                                                <TextBlock Text="{x:Bind Explanation}" Style="{ThemeResource CaptionTextBlockStyle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" TextWrapping="Wrap" />
+                                                <HyperlinkButton Content="Show on map" Padding="0" Tag="{x:Bind Path}" Click="OnShowInsightClicked" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
+                            </ScrollViewer>
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button Content="Databases..." Click="OnDatabasesClicked" />
+            </StackPanel>
+
             <Button
                 Grid.Column="6"
                 VerticalAlignment="Bottom"

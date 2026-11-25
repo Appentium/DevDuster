@@ -17,6 +17,10 @@ public sealed class RuleCatalog
         "user.selected", "Selected by you", Tier.Review, RulePlatform.Windows, new UserSelectedTarget(),
         "Chosen by you; not regenerated.");
 
+    public static readonly Rule Leftover = new(
+        "uninstall.leftover", "Leftover folder", Tier.Caution, RulePlatform.Windows, new LeftoverTarget(),
+        "Reinstalling the program creates a fresh one; its old settings are gone.");
+
     public RuleCatalog(UserFolders? folders = null)
     {
         Folders = folders ?? UserFolders.Current();

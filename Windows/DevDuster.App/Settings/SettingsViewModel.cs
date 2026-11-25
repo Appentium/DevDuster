@@ -39,6 +39,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedWeekdayIndex = dayIdx < 0 ? 0 : dayIdx;
         SelectedHourIndex = Math.Clamp(s.ScheduleHour, 0, 23);
         ScheduledCleanRecycles = s.ScheduledCleanRecycles;
+        TrayEnabled = s.TrayEnabled;
         Hours = [.. Enumerable.Range(0, 24).Select(h => $"{h:00}:00")];
         _initialized = true;
     }
@@ -94,6 +95,15 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial string? ScheduleError { get; set; }
+
+    [ObservableProperty]
+    public partial bool TrayEnabled { get; set; }
+
+    partial void OnTrayEnabledChanged(bool value)
+    {
+        if (!_initialized) return;
+        _services.ApplyTrayEnabled(value);
+    }
 
     partial void OnSelectedThemeIndexChanged(int value)
     {

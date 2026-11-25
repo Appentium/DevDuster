@@ -6,8 +6,11 @@ using DevDuster.App.LargeFiles;
 using DevDuster.App.MoveTools;
 using DevDuster.App.Projects;
 using DevDuster.App.Settings;
+using DevDuster.App.SystemCleanup;
 using DevDuster.App.Uninstaller;
 using DevDuster.Core.Settings;
+using H.NotifyIcon;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -18,7 +21,9 @@ public sealed partial class MainWindow : Window
 {
     private readonly AppServices _services;
     private readonly LowSpaceAlerts _alerts;
+    private readonly TrayIconController _tray;
     private object? _pendingNavParam;
+    private bool _isExiting;
 
     public MainWindow(AppServices services)
     {
@@ -35,6 +40,42 @@ public sealed partial class MainWindow : Window
         NavView.SelectedItem = NavView.MenuItems[0];
         _alerts = new LowSpaceAlerts(services);
         _alerts.Start();
+        _tray = new TrayIconController(services, DispatcherQueue, ShowFromTray, ScanNow, Quit);
+        AppWindow.Closing += OnAppWindowClosing;
+        Closed += (_, _) => _tray.Dispose();
+    }
+
+    public void ShowFromTray()
+    {
+        this.Show();
+        Activate();
+    }
+
+    private void ScanNow()
+    {
+        ShowFromTray();
+        if (ContentFrame.Content is CleanerPage cleaner)
+        {
+            cleaner.StartScanIfIdle();
+            return;
+        }
+        NavigateByTag("cleaner", "scan");
+    }
+
+    private void Quit()
+    {
+        _isExiting = true;
+        _tray.Dispose();
+        Close();
+    }
+
+    private void OnAppWindowClosing(AppWindow sender, AppWindowClosingEventArgs args)
+    {
+        if (!_isExiting && _services.Settings.TrayEnabled)
+        {
+            args.Cancel = true;
+            this.Hide();
+        }
     }
 
     private void OnThemeChanged(AppThemeChoice theme) =>
@@ -114,6 +155,7 @@ public sealed partial class MainWindow : Window
         "devtools" => typeof(DeveloperToolsPage),
         "movetools" => typeof(MoveToolsPage),
         "diskmap" => typeof(DiskMapPage),
+        "system" => typeof(SystemCleanupPage),
         _ => typeof(DashboardPage),
     };
 }

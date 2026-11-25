@@ -1,5 +1,7 @@
+using System.Windows.Input;
+using CommunityToolkit.Mvvm.Input;
 using DevDuster.App.Shared;
-using DevDuster.Platform;
+using DevDuster.Core.Uninstall;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
@@ -11,10 +13,12 @@ public sealed partial class UninstallerPage : Page
     public UninstallerPage()
     {
         ViewModel = new UninstallerViewModel(App.Current.Services);
+        RemoveLeftoversCommand = new AsyncRelayCommand(() => ViewModel.CleanLeftoversAsync(XamlRoot));
         InitializeComponent();
     }
 
     public UninstallerViewModel ViewModel { get; }
+    public ICommand RemoveLeftoversCommand { get; }
 
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {

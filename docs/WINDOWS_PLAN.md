@@ -8,7 +8,7 @@ Updated 2026-11-25 to match Mac 0.2.0. Code is written on the Mac without a comp
 - **Rules:** a separate C# catalog. Almost every path differs from the Mac one.
 - **Shipping:** MSIX through the Appentium LLC Microsoft Store account, which also serves `winget`. The Store signs it.
 - **Delete:** Recycle Bin by default; permanent delete is opt-in. An item Windows cannot recycle (too big, or a drive with no bin) is refused, never silently deleted.
-- **Targets:** Windows 10 22H2+ and Windows 11, x64 and ARM64. No admin rights in v1.
+- **Targets:** Windows 10 22H2+ and Windows 11, x64 and ARM64. No admin rights, except the System page, which asks through UAC.
 - **Updates:** the Store updates the app, so there is no Sparkle equivalent.
 
 ## Layout
@@ -18,7 +18,8 @@ Windows/
   DevDuster.Core/        net10.0, no Windows APIs
     Rules/ Scan/ Clean/ Explore/ Relocate/ Settings/ Uninstall/ Automation/
   DevDuster.Platform/    net10.0-windows: recycle bin, allocated size, junctions, installed apps, Task Scheduler
-  DevDuster.Cli/         duster.exe: scan, clean
+  DevDuster.Cli/         duster.exe: scan, clean, dig
+  DevDuster.Helper/      native elevated helper for the System page
   DevDuster.App/         WinUI 3, MSIX packaged
   DevDuster.Core.Tests/  xUnit, temporary folders only
 ```
@@ -60,7 +61,7 @@ Core gets every Windows call through a small interface: `IFileRemover`, `IFileMe
 - The journal is written before each step, and `Recover()` runs at launch.
 
 ## Phases
-- **W0 setup (owner, Windows PC):** Visual Studio 2026 with .NET desktop and WinUI workloads, reserve "DevDuster" in Partner Center.
+- **W0 setup (owner, Windows PC):** Visual Studio 2026 with .NET desktop, WinUI and Desktop development with C++ workloads (plus the ARM64 C++ tools for ARM64), reserve "DevDuster" in Partner Center.
 - **W1:** Core, Platform, CLI, tests.
 - **W2:** app shell, Dashboard, Cleaner, Projects, Settings.
 - **W3:** Developer Tools, Move Tools, Disk Map, Large Files.
@@ -70,8 +71,13 @@ Core gets every Windows call through a small interface: `IFileRemover`, `IFileMe
 - **W6, W7:** elevated helper, Disk Digger.
 
 ## Status (2026-11-25, written, never compiled)
-- **Written:** W1, W2, W3, W5 except the tray icon, and the W4 program list with vendor uninstall.
-- **Left:** W4 leftover folders, tray icon, ship, W6, W7.
+- **Written:** W1 to W7, the Store listing (`docs/WINDOWS_STORE.md`) and the README section.
+- **Left for the owner:** build and test on the PC, screenshots, Partner Center, publisher identity, submission.
+- **Differs from the plans:**
+  - Disk Map shows one "Not visible to this scan" block instead of per-volume rows, and has no "scan with admin rights": the elevated helper takes no paths.
+  - A folder holding any git repository is Critical; unpushed work is not checked, so no `git` runs on unknown repos.
+  - The database tool signs in as `root` on 127.0.0.1:3306 and ignores option files; a password has to be saved with `mysql_config_editor`.
+- **Elevated helper:** `devduster-helper.exe` (`Windows/DevDuster.Helper`), NativeAOT so user environment variables can't load code into it. It takes one task id (`update-cache`, `component-cleanup`, `dumps`), starts with a UAC prompt from the package folder and needs `allowElevation`. The app build publishes it into the package.
 
 ## First run on the Windows PC
 1. `dotnet test Windows/DevDuster.Core.Tests`. Fix compile errors first: nothing has been built yet.
@@ -80,6 +86,9 @@ Core gets every Windows call through a small interface: `IFileRemover`, `IFileMe
 4. Open `Windows/DevDuster.slnx`, set `DevDuster.App` as startup, platform x64, run.
 5. Check deletes by hand: a junction inside a target, a file open in another app, an item larger than the Recycle Bin limit, a USB drive.
 6. Move Tools: move a small tool, undo it, then kill the app mid-copy and relaunch.
+7. System page: confirm `devduster-helper.exe` is in the package, the UAC prompt appears and each task works from the installed package.
+8. Tray: close the window, check the icon, "Scan now", "Quit", and that a second launch shows the same window.
+9. Uninstaller > Leftover folders and Disk Map > Databases: check the list against what you know before removing anything.
 
 ## Store risk
 Packaged apps get `AppData` writes virtualized, so a delete could miss the real file. The manifest turns that off with `desktop6:FileSystemWriteVirtualization` and the restricted capabilities `unvirtualizedResources` and `runFullTrust`. Store review needs a written reason ("developer cache cleaner that removes files the user picks"). Confirm on the PC that a delete in `%LOCALAPPDATA%` is real. Fallback: an unpackaged installer on winget and GitHub, signed with Azure Artifact Signing.

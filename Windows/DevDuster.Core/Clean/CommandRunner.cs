@@ -5,7 +5,7 @@ namespace DevDuster.Core.Clean;
 
 public static class CommandRunner
 {
-    public static string? Run(string executable, IReadOnlyList<string> arguments, TimeSpan timeout)
+    public static string? Run(string executable, IReadOnlyList<string> arguments, TimeSpan timeout, int alsoSucceeds = 0)
     {
         var start = new ProcessStartInfo(executable)
         {
@@ -24,7 +24,7 @@ public static class CommandRunner
                 process.Kill(entireProcessTree: true);
                 return null;
             }
-            return process.ExitCode == 0 ? output.GetAwaiter().GetResult() : null;
+            return process.ExitCode == 0 || process.ExitCode == alsoSucceeds ? output.GetAwaiter().GetResult() : null;
         }
         catch (Exception error) when (error is Win32Exception or InvalidOperationException or IOException) { return null; }
     }

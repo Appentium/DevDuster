@@ -1,5 +1,6 @@
 using DevDuster.Core.Rules;
 using DevDuster.Core.Scan;
+using DevDuster.Core.Uninstall;
 
 namespace DevDuster.Core.Clean;
 
@@ -33,7 +34,7 @@ public sealed class DenyGuard
     ];
 
     private static readonly string[] SystemNames =
-        ["$Recycle.Bin", "System Volume Information", "$WinREAgent", "Recovery", "Boot", "EFI", "pagefile.sys", "swapfile.sys", "hiberfil.sys"];
+        ["$Recycle.Bin", "System Volume Information", "$WinREAgent", "Recovery", "Boot", "EFI", "pagefile.sys", "swapfile.sys", "hiberfil.sys", "bootmgr", "BOOTNXT", "Windows.old"];
 
     private readonly UserFolders _folders;
     private readonly string _home;
@@ -111,6 +112,8 @@ public sealed class DenyGuard
                 return false;
             case UserSelectedTarget:
                 return true;
+            case LeftoverTarget:
+                return PathTools.IsPlainDirectory(path) && LeftoverShape.Matches(_folders, path) && !PathTools.IsSameOrInside(path, _packages);
             default:
                 return false;
         }

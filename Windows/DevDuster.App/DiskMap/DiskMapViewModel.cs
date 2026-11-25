@@ -11,6 +11,13 @@ public sealed record DiskLocationOption(string Label, string Path);
 
 public sealed record BreadcrumbEntry(int Index, string Name);
 
+public sealed record InsightRow(Insight Insight)
+{
+    public string Heading => $"{Insight.Title} · {ByteText.Format(Insight.Bytes)}";
+    public string Path => Insight.Path;
+    public string Explanation => $"{Insight.Reason} {Insight.Action}";
+}
+
 public sealed partial class DiskMapViewModel : ObservableObject
 {
     private static readonly long[] MinSizeValues = [0, 1_000_000, 10_000_000, 100_000_000, 1_000_000_000];
@@ -29,6 +36,7 @@ public sealed partial class DiskMapViewModel : ObservableObject
         Trail = [];
         ExcludedPaths = [];
         UnreadablePaths = [];
+        Insights = [];
         ProgressText = "";
         StatusText = "Ready";
         CurrentSizeText = "";
@@ -86,6 +94,12 @@ public sealed partial class DiskMapViewModel : ObservableObject
     public partial IReadOnlyList<string> UnreadablePaths { get; set; }
 
     [ObservableProperty]
+    public partial IReadOnlyList<InsightRow> Insights { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasInsights { get; set; }
+
+    [ObservableProperty]
     public partial DiskNode? SelectedNode { get; set; }
 
     [ObservableProperty]
@@ -118,12 +132,14 @@ public sealed partial class DiskMapViewModel : ObservableObject
     public void ReloadLocations()
     {
         _suppressLocationScan = true;
-        var list = new List<DiskLocationOption> { new("Home (~)", _services.Folders.Home) };
-        foreach (var drive in _services.Drives.Drives())
+        var list = new List<DiskLocationOption>();
+        // The system drive comes first, so the map opens on the whole PC.
+        foreach (var drive in _services.Drives.Drives().OrderByDescending(drive => drive.IsSystem))
         {
             var label = string.IsNullOrWhiteSpace(drive.Label) ? drive.Root : $"{drive.Label} ({drive.Root.TrimEnd('\\')})";
             list.Add(new DiskLocationOption(label, drive.Root));
         }
+        list.Add(new DiskLocationOption("Home (~)", _services.Folders.Home));
         if (_customFolder is not null) list.Add(new DiskLocationOption(Path.GetFileName(_customFolder), _customFolder));
         Locations = list;
         if (SelectedLocationIndex < 0 || SelectedLocationIndex >= Locations.Count) SelectedLocationIndex = 0;
@@ -160,6 +176,8 @@ public sealed partial class DiskMapViewModel : ObservableObject
         UnreadablePaths = [];
         HasUnreadable = false;
         UnreadableText = "";
+        Insights = [];
+        HasInsights = false;
         HasTreemap = false;
         EmptyMessage = "";
         ProgressText = $"Scanning {target.Label}...";
@@ -174,6 +192,7 @@ public sealed partial class DiskMapViewModel : ObservableObject
             var excluded = ExcludedPaths.ToList();
             var node = await Task.Run(() => _services.DiskMapBuilder.RunAsync(target.Path, excluded, progress, ct), ct);
             if (ct.IsCancellationRequested) return;
+            if (node is not null && _services.Drives.DriveOf(node.Path) is { } drive) node = DiskAccounting.WithUnseen(node, drive);
             _rootNode = node;
             HasScanned = true;
             if (node is not null)
@@ -182,6 +201,8 @@ public sealed partial class DiskMapViewModel : ObservableObject
                 UnreadablePaths = node.Unreadable;
                 HasUnreadable = node.Unreadable.Count > 0;
                 UnreadableText = $"Unreadable: {node.Unreadable.Count}";
+                Insights = [.. node.Insights.Select(insight => new InsightRow(insight))];
+                HasInsights = Insights.Count > 0;
             }
             UpdateCurrentView();
         }
@@ -226,6 +247,20 @@ public sealed partial class DiskMapViewModel : ObservableObject
     {
         if (index < 0 || index >= _trail.Count) return;
         _trail.RemoveRange(index + 1, _trail.Count - index - 1);
+        SelectedNode = null;
+        UpdateCurrentView();
+    }
+
+    // Stops at the deepest folder still on the map, since small ones are folded away.
+    public void ShowPath(string path)
+    {
+        if (_trail.Count == 0) return;
+        _trail.RemoveRange(1, _trail.Count - 1);
+        while (_trail[^1].Children.FirstOrDefault(child =>
+            child.IsDirectory && child.FoldedCount == 0 && PathTools.IsSameOrInside(path, child.Path)) is { } next)
+        {
+            _trail.Add(next);
+        }
         SelectedNode = null;
         UpdateCurrentView();
     }

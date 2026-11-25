@@ -1,3 +1,4 @@
+using DevDuster.Core.Rules;
 using DevDuster.Core.Scan;
 
 namespace DevDuster.Core.Explore;
@@ -11,6 +12,7 @@ public sealed class DiskNode(string path, string name, long bytes, bool isDirect
     public IReadOnlyList<DiskNode> Children { get; } = children;
     public int FoldedCount { get; } = foldedCount;
     public IReadOnlyList<string> Unreadable { get; init; } = [];
+    public IReadOnlyList<Insight> Insights { get; init; } = [];
 
     public DiskNode Removing(string path)
     {
@@ -20,6 +22,7 @@ public sealed class DiskNode(string path, string name, long bytes, bool isDirect
             return new DiskNode(Path, Name, Math.Max(0, Bytes - removed.Bytes), IsDirectory, rest, FoldedCount)
             {
                 Unreadable = Unreadable,
+                Insights = Insights,
             };
         }
         var delta = 0L;
@@ -33,6 +36,7 @@ public sealed class DiskNode(string path, string name, long bytes, bool isDirect
         return new DiskNode(Path, Name, Math.Max(0, Bytes - delta), IsDirectory, updated, FoldedCount)
         {
             Unreadable = Unreadable,
+            Insights = Insights,
         };
     }
 }
@@ -67,6 +71,7 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
         var excludedSet = new HashSet<string>(excluded.Select(PathTools.Normalize), PathTools.Comparer);
         var sizes = new SizeCalculator(measure);
         var unreadable = new List<string>();
+        var insights = new List<Insight>();
         var stack = new Stack<Frame>();
         stack.Push(new Frame(resolved) { Children = PathTools.TryChildren(resolved) });
         DiskNode? rootNode = null;
@@ -95,6 +100,9 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
             {
                 stack.Pop();
                 var folded = Fold(frame.Nodes, frame.Path);
+                // Insights are read before folding hides the many small items.
+                insights.AddRange(Explore.Insights.ForFolder(
+                    frame.Path, folded.Bytes, [.. frame.Nodes.Select(node => (node.Name, node.Bytes, node.IsDirectory))]));
                 Attach(stack, ref rootNode, new DiskNode(frame.Path, frame.Name, folded.Bytes, true, folded.Children));
                 continue;
             }
@@ -106,6 +114,10 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
             {
                 var bytes = sizes.AllocatedSize(file);
                 totalBytes += bytes;
+                if (bytes >= Explore.Insights.NotableBytes && PathKnowledge.Match(file.FullName) is { } fact)
+                {
+                    insights.Add(new Insight(file.FullName, bytes, fact.Title, fact.Usage, fact.Action));
+                }
                 frame.Nodes.Add(new DiskNode(file.FullName, file.Name, bytes, false, []));
             }
             else
@@ -117,6 +129,7 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
         if (rootNode is not null) rootNode = new DiskNode(rootNode.Path, rootNode.Name, rootNode.Bytes, rootNode.IsDirectory, rootNode.Children, rootNode.FoldedCount)
         {
             Unreadable = unreadable,
+            Insights = [.. insights.OrderByDescending(insight => insight.Bytes)],
         };
         return Task.FromResult(ct.IsCancellationRequested ? null : rootNode);
     }
@@ -128,6 +141,7 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
         var kept = new List<DiskNode>();
         var otherBytes = 0L;
         var otherCount = 0;
+        var otherFolders = new List<(string Name, long Bytes)>();
         for (var index = 0; index < sorted.Count; index++)
         {
             var child = sorted[index];
@@ -140,11 +154,17 @@ public sealed class DiskMapBuilder(IFileMeasure measure)
             {
                 otherBytes += child.Bytes;
                 otherCount++;
+                if (child.IsDirectory) otherFolders.Add((child.Name, child.Bytes));
             }
         }
         if (otherCount > 0)
         {
             var label = otherCount == 1 ? "Other (1 item)" : $"Other ({otherCount} items)";
+            // A clone set is named only when it is most of what was folded.
+            if (Explore.Insights.CloneSets(otherFolders).FirstOrDefault() is { } set && set.Names.Count * 2 > otherCount)
+            {
+                label = $"{set.Names.Count:N0} {set.Prefix}* folders and {otherCount - set.Names.Count:N0} more";
+            }
             kept.Add(new DiskNode(Path.Combine(parentPath, "#other"), label, otherBytes, false, [], otherCount));
         }
         return (kept, total);

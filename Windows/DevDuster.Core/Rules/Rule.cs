@@ -18,6 +18,8 @@ public sealed record DockerPruneTarget : RuleTarget;
 
 public sealed record UserSelectedTarget : RuleTarget;
 
+public sealed record LeftoverTarget : RuleTarget;
+
 public sealed class Rule(string id, string title, Tier tier, RulePlatform platform, RuleTarget target, string regenerate)
 {
     public string Id { get; } = id;

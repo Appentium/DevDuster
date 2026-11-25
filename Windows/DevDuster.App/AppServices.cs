@@ -64,6 +64,7 @@ public sealed class AppServices
     public ScanReport? LastScanReport { get; private set; }
 
     public event Action<AppThemeChoice>? ThemeChanged;
+    public event Action<bool>? TrayEnabledChanged;
     public event Action? HistoryChanged;
     public event Action? ScanReportChanged;
     public event Action<string, object?>? NavigationRequested;
@@ -74,6 +75,13 @@ public sealed class AppServices
         Settings.Theme = theme;
         SettingsStore.Save(Settings);
         ThemeChanged?.Invoke(theme);
+    }
+
+    public void ApplyTrayEnabled(bool enabled)
+    {
+        Settings.TrayEnabled = enabled;
+        SettingsStore.Save(Settings);
+        TrayEnabledChanged?.Invoke(enabled);
     }
 
     public void UpdateScanReport(ScanReport report)

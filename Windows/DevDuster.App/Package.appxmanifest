@@ -54,5 +54,6 @@
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
     <rescap:Capability Name="unvirtualizedResources" />
+    <rescap:Capability Name="allowElevation" />
   </Capabilities>
 </Package>

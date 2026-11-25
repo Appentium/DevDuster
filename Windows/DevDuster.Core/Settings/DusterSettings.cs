@@ -52,6 +52,7 @@ public sealed class DusterSettings
     }
 
     public bool ScheduledCleanRecycles { get; set; } = true;
+    public bool TrayEnabled { get; set; } = true;
     public AppThemeChoice Theme { get; set; } = AppThemeChoice.System;
 
     public ScanOptions ToScanOptions(IReadOnlySet<Tier>? tiers = null, IReadOnlyList<string>? scope = null) => new()

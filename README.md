@@ -120,6 +120,33 @@ make release
 
 It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to the update feed and the Homebrew cask, and publishes `DevDuster.zip` as a GitHub release. The feed (`appcast.xml`) lives in the private website repo, expected next to this one as `../devduster-website` or at `DEVDUSTER_SITE`. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
 
+## Windows
+
+DevDuster for Windows is a C#/.NET 10 cleaner for developer caches, logs and build output. It groups items into Safe, Review and Caution tiers and moves them to the Recycle Bin by default; permanent delete is opt-in. The source lives in `Windows/`: a core library, a `duster` CLI and a WinUI 3 app.
+
+Requires Windows 10 22H2 or later, or Windows 11, on x64 or ARM64.
+
+To build from source, install the .NET 10 SDK and Visual Studio 2026 with the .NET desktop, WinUI and Desktop development with C++ workloads, then:
+
+```bash
+dotnet test Windows/DevDuster.Core.Tests
+dotnet run --project Windows/DevDuster.Cli -- scan
+```
+
+Open `Windows/DevDuster.slnx`, set `DevDuster.App` as the startup project, choose x64, and run.
+
+The CLI commands are:
+
+| Command | What it does |
+|---|---|
+| `duster scan [--json] [--tier safe\|review\|caution]` | Lists reclaimable items by rule. Read-only. |
+| `duster clean [--delete] [--yes]` | Cleans the Safe tier. Moves to the Recycle Bin unless `--delete` is given; `--yes` skips the confirmation. |
+| `duster dig [path]` | Shows what fills a drive or folder, with findings. Read-only. |
+
+Status: not yet released in the Microsoft Store. See [docs/WINDOWS_STORE.md](docs/WINDOWS_STORE.md) for the Store listing.
+
+DevDuster is an Appentium project: https://appentium.com.
+
 ## License
 
 MIT, see `LICENSE`.

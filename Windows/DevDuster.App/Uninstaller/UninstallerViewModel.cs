@@ -1,7 +1,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevDuster.App.Shared;
-using DevDuster.Platform;
+using DevDuster.Core.Uninstall;
+using Microsoft.UI.Xaml;
 
 namespace DevDuster.App.Uninstaller;
 
@@ -16,8 +17,30 @@ public sealed record ProgramRowViewModel(InstalledProgram Program)
     public bool HasInstallLocation => !string.IsNullOrWhiteSpace(Program.InstallLocation);
 }
 
+public sealed partial class LeftoverRowViewModel(Leftover leftover, Action selectionChanged) : ObservableObject
+{
+    public Core.Scan.ScanItem Item => leftover.Item;
+    public string Name => leftover.Item.Name;
+    public string Path => leftover.Item.Path;
+    public string Reason => leftover.Reason;
+    public string SizeText => ByteText.Format(leftover.Item.Bytes);
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsChecked))]
+    public partial bool IsSelected { get; set; }
+
+    partial void OnIsSelectedChanged(bool value) => selectionChanged();
+
+    public bool? IsChecked
+    {
+        get => IsSelected;
+        set => IsSelected = value == true;
+    }
+}
+
 public sealed partial class UninstallerViewModel : ObservableObject
 {
+    private readonly List<InstalledProgram> _uninstallStarted = [];
     private readonly AppServices _services;
     private readonly List<ProgramRowViewModel> _allPrograms = [];
     private bool _hasLoaded;
@@ -28,7 +51,23 @@ public sealed partial class UninstallerViewModel : ObservableObject
         Programs = [];
         SearchText = "";
         CountText = "";
+        Leftovers = [];
     }
+
+    [ObservableProperty]
+    public partial IReadOnlyList<LeftoverRowViewModel> Leftovers { get; set; }
+
+    [ObservableProperty]
+    public partial int SelectedCount { get; set; }
+
+    [ObservableProperty]
+    public partial long SelectedBytes { get; set; }
+
+    [ObservableProperty]
+    public partial bool IsCleaning { get; set; }
+
+    [ObservableProperty]
+    public partial bool HasNoLeftovers { get; set; }
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
@@ -72,6 +111,7 @@ public sealed partial class UninstallerViewModel : ObservableObject
             _allPrograms.AddRange(read.Select(p => new ProgramRowViewModel(p)));
             _hasLoaded = true;
             ApplyFilterAndSort();
+            await FindLeftoversAsync(read);
         }
         catch (Exception error)
         {
@@ -89,11 +129,62 @@ public sealed partial class UninstallerViewModel : ObservableObject
         try
         {
             await Task.Run(() => _services.InstalledPrograms.Uninstall(program));
+            _uninstallStarted.Add(program);
         }
         catch (Exception error)
         {
             ErrorMessage = error.Message;
         }
+    }
+
+    [RelayCommand]
+    private void SelectAll()
+    {
+        foreach (var row in Leftovers) row.IsSelected = true;
+    }
+
+    [RelayCommand]
+    private void DeselectAll()
+    {
+        foreach (var row in Leftovers) row.IsSelected = false;
+    }
+
+    public async Task CleanLeftoversAsync(XamlRoot xamlRoot)
+    {
+        if (IsCleaning) return;
+        IsCleaning = true;
+        try
+        {
+            var items = Leftovers.Where(row => row.IsSelected).Select(row => row.Item).ToList();
+            var results = await CleanFlow.ExecuteAsync(_services, xamlRoot, items, note: "Check each folder first: it may hold settings or data you want to keep.");
+            if (results is null) return;
+            var removed = results.Where(result => result.Succeeded).Select(result => result.Item).ToHashSet();
+            Leftovers = [.. Leftovers.Where(row => !removed.Contains(row.Item))];
+            HasNoLeftovers = Leftovers.Count == 0;
+            UpdateSelection();
+        }
+        finally
+        {
+            IsCleaning = false;
+        }
+    }
+
+    private async Task FindLeftoversAsync(IReadOnlyList<InstalledProgram> listed)
+    {
+        // A program counts as removed only once its registry entry is gone.
+        var removed = _uninstallStarted.Where(program => listed.All(other => other.Id != program.Id)).ToList();
+        var finder = new LeftoverFinder(_services.Folders, _services.Measure, _services.Processes);
+        var found = await Task.Run(() => finder.Find(_services.InstalledPrograms.ReadForLeftovers(), removed));
+        Leftovers = [.. found.Select(leftover => new LeftoverRowViewModel(leftover, UpdateSelection))];
+        HasNoLeftovers = Leftovers.Count == 0;
+        UpdateSelection();
+    }
+
+    private void UpdateSelection()
+    {
+        var selected = Leftovers.Where(row => row.IsSelected).ToList();
+        SelectedCount = selected.Count;
+        SelectedBytes = selected.Sum(row => row.Item.Bytes);
     }
 
     private void ApplyFilterAndSort()

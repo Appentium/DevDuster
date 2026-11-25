@@ -15,6 +15,7 @@
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>MSIX</WindowsPackageType>
     <PublishTrimmed>false</PublishTrimmed>
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,11 +23,13 @@
     <Content Include="Assets\Square150x150Logo.png" />
     <Content Include="Assets\Square44x44Logo.png" />
     <Content Include="Assets\StoreLogo.png" />
+    <Content Include="Assets\Tray.ico" />
     <Content Include="Assets\Wide310x150Logo.png" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
+    <PackageReference Include="H.NotifyIcon.WinUI" Version="2.4.1" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4654" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.8.251106002" />
   </ItemGroup>
@@ -35,4 +38,16 @@
     <ProjectReference Include="..\DevDuster.Platform\DevDuster.Platform.csproj" />
     <ProjectReference Include="..\DevDuster.Cli\DevDuster.Cli.csproj" />
   </ItemGroup>
+  <!-- NativeAOT only happens on publish, so a plain project reference would ship a managed helper. -->
+  <Target Name="PublishNativeHelper" BeforeTargets="AssignTargetPaths" Condition="'$(RuntimeIdentifier)' != '' and '$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup>
+      <HelperProject>..\DevDuster.Helper\DevDuster.Helper.csproj</HelperProject>
+      <HelperOutput>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)helper\</HelperOutput>
+    </PropertyGroup>
+    <MSBuild Projects="$(HelperProject)" Targets="Publish" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishDir=$(HelperOutput)" RemoveProperties="Platform" />
+    <ItemGroup>
+      <Content Include="$(HelperOutput)devduster-helper.exe" Link="devduster-helper.exe" CopyToOutputDirectory="PreserveNewest" />
+    </ItemGroup>
+  </Target>
+
 </Project>

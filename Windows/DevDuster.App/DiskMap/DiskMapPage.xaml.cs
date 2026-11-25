@@ -56,6 +56,14 @@ public sealed partial class DiskMapPage : Page
         if (sender is FrameworkElement { Tag: int index }) ViewModel.NavigateTo(index);
     }
 
+    private void OnShowInsightClicked(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement { Tag: string path }) ViewModel.ShowPath(path);
+    }
+
+    private async void OnDatabasesClicked(object sender, RoutedEventArgs e) =>
+        await DatabaseDialog.ShowAsync(App.Current.Services, XamlRoot);
+
     private void OnIncludeAgainClicked(object sender, RoutedEventArgs e)
     {
         if (sender is FrameworkElement { Tag: string path }) ViewModel.IncludeAgain(path);

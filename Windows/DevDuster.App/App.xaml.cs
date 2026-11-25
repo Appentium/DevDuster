@@ -19,4 +19,12 @@ public partial class App : Application
         MainWindow = new MainWindow(Services);
         MainWindow.Activate();
     }
+
+    public void ShowMainWindow()
+    {
+        if (MainWindow is MainWindow window)
+        {
+            window.DispatcherQueue.TryEnqueue(window.ShowFromTray);
+        }
+    }
 }

@@ -22,6 +22,7 @@ public static class Program
             {
                 "scan" => ScanCommand.Run(args[1..], cancellation.Token),
                 "clean" => CleanCommand.Run(args[1..], cancellation.Token),
+                "dig" => DigCommand.Run(args[1..], cancellation.Token),
                 _ => Usage($"Unknown command '{args[0]}'."),
             };
         }
@@ -40,6 +41,7 @@ public static class Program
         Console.Error.WriteLine("Usage:");
         Console.Error.WriteLine("  duster scan [--json] [--tier safe|review|caution]");
         Console.Error.WriteLine("  duster clean [--delete] [--yes]");
+        Console.Error.WriteLine("  duster dig [path]");
         return 2;
     }
 }

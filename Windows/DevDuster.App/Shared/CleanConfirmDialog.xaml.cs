@@ -6,13 +6,14 @@ namespace DevDuster.App.Shared;
 
 public sealed partial class CleanConfirmDialog : ContentDialog
 {
-    public CleanConfirmDialog(IReadOnlyList<ScanItem> items, bool moveToRecycleBin = true, string? note = null)
+    public CleanConfirmDialog(IReadOnlyList<ScanItem> items, bool moveToRecycleBin = true, string? note = null, bool recycleOnly = false)
     {
         Items = items;
         Note = note;
         TotalBytes = items.Sum(item => item.Bytes);
         InitializeComponent();
         RecycleCheckBox.IsChecked = moveToRecycleBin;
+        RecycleCheckBox.IsEnabled = !recycleOnly;
         UpdateMode();
     }
 

@@ -22,10 +22,12 @@ public sealed partial class CleanerPage : Page
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (Equals(e.Parameter, "scan") && !ViewModel.IsScanning)
-        {
-            _ = ViewModel.StartScanAsync();
-        }
+        if (Equals(e.Parameter, "scan")) StartScanIfIdle();
+    }
+
+    public void StartScanIfIdle()
+    {
+        if (!ViewModel.IsScanning) _ = ViewModel.StartScanAsync();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
