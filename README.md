@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/screenshots/cleaner.png" width="800" alt="Cleaner: DerivedData labelled by project, with Safe, Review and Caution tiers">
+  <img src="docs/screenshots/dashboard.png" width="800" alt="Dashboard: disk usage, reclaimable space, cleaning activity and volumes">
 </p>
 
 ---
@@ -31,22 +31,25 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
   - **Safe**: rebuilt automatically (DerivedData, SwiftPM, CocoaPods, Homebrew, npm, Yarn, pnpm, Bun, pip, uv, Poetry, Cargo, Go build, Composer and NuGet caches, editor and AI tool caches and logs, Gradle build cache).
   - **Review**: re-downloaded or rebuilt on demand (old Gradle caches and wrappers, Maven, Go modules, Conda packages, Playwright browsers, old iOS DeviceSupport, the Dart pub cache, unused Docker data).
   - **Caution**: you pick each item (Ollama, LM Studio and Hugging Face models, AVDs, unused Android system images, old NDKs, build tools and SDK platforms, simulator runtimes, Vagrant boxes, Xcode archives, device backups).
-- **Developer Tools**: everything grouped by tool family, from Apple and Android to JavaScript, Python, Rust, Go, Java, editors, AI tools and AI models. DerivedData folders are labelled with the project they belong to, and simulators and runtimes are removed through `simctl`.
+- **Developer Tools**: shows where each tool's storage goes (Android SDK, emulators, Gradle, Xcode, simulators and more) on any drive, split into Safe to clean, Needs review and Essential parts, and lets you clean the safe and reviewable parts in place. Simulators and runtimes are removed through `simctl`.
 - **Move Tools**: moves a tool's data (Gradle, npm, pub cache, SDKs, simulators, editor data, AI models and 70+ more) to another APFS drive. It copies, checks every file, leaves a link at the old path so nothing breaks, and only then deletes the old copy. Refuses while any app has files open there, survives a crash mid-move, and every move can be undone.
 - **Projects**: finds every code project on every mounted volume (Flutter, Node, Rust, Gradle, Xcode/CocoaPods, Python, .NET, CMake, Unity, Unreal, Elixir, Haskell, Zig and more) and lists only the folders the next build or install recreates, with last activity, per-project select-all and *Select stale*.
 - **Project artifacts**: `node_modules`, `.next`, `.venv`, `Pods`, Gradle `build/`, Cargo and Maven `target/`, Composer `vendor/` and more are removed only when the matching marker file (`package.json`, `pyproject.toml`, `Podfile`, `build.gradle`, `Cargo.toml`, `pom.xml`, `composer.json`) sits next to them, and never in projects you touched recently.
 - **Uninstaller**: removes apps together with their leftovers, background items and Homebrew packages. It also finds leftovers of apps that are already gone.
-- **Disk Map**: a treemap of any folder or volume with drill-down.
+- **Disk Map**: a treemap of any folder or volume with drill-down, a minimum size filter, and folders you can exclude from scans.
 - **Large Files**: finds large and old files with size and age filters.
+- **Sort and select**: Size and Name sorting and Select All / Deselect All across the Cleaner, Uninstaller, Large Files and System lists.
 - **System**: local Time Machine snapshots, `/Library/Caches`, rotated system logs and root-owned trash, through a privileged helper with a fixed allowlist.
 - **External disks**: scans every mounted volume and shows each volume's trash, with an Empty Trash button.
 - **Automation**: a menu bar item and low-space alerts (on by default), and a scheduled clean of the Safe tier (off by default). Each can be turned off in Settings.
 
 ## Screenshots
 
-| Xcode & Android | Projects |
+| Cleaner | Projects |
 |---|---|
-| ![Xcode and Android](docs/screenshots/xcode-android.png) | ![Projects](docs/screenshots/flutter-projects.png) |
+| ![Cleaner](docs/screenshots/cleaner.png) | ![Projects](docs/screenshots/projects.png) |
+| **Developer Tools** | **Move Tools** |
+| ![Developer Tools](docs/screenshots/developer-tools.png) | ![Move Tools](docs/screenshots/move-tools.png) |
 | **Uninstaller** | **Disk Map** |
 | ![Uninstaller](docs/screenshots/uninstaller.png) | ![Disk Map](docs/screenshots/disk-map.png) |
 | **Large Files** | |
