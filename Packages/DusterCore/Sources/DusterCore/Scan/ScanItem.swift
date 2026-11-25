@@ -24,6 +24,10 @@ public struct ScanItem: Sendable, Hashable, Identifiable {
         return parent.deletingLastPathComponent().lastPathComponent
     }
 
+    public var displayName: String {
+        projectName ?? url.lastPathComponent
+    }
+
     private static func workspace(ofDerivedData url: URL) -> URL? {
         guard let data = try? Data(contentsOf: url.appending(path: "info.plist")),
               let plist = try? PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any],

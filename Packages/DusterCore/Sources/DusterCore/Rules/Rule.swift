@@ -1,7 +1,7 @@
 public struct Rule: Sendable, Hashable, Identifiable {
     public enum Target: Sendable, Hashable {
         case home([String])
-        case project(directory: String, markers: [String])
+        case project(directory: String, markers: [String], proof: String? = nil)
         case dockerPrune
         case simulatorDevices
         case simulatorRuntimes

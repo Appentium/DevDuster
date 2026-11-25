@@ -609,11 +609,99 @@ public struct RuleCatalog: Sendable {
             target: .project(directory: ".terraform", markers: [".terraform.lock.hcl"]),
             regenerate: "terraform init recreates it."
         ),
+        Rule(
+            id: "project.python-venv", title: "Python virtual environments", tier: .review, platform: .python,
+            target: .project(directory: "venv", markers: pythonToolMarkers, proof: "pyvenv.cfg"),
+            regenerate: "python -m venv venv and pip install -r requirements.txt recreate it."
+        ),
+        Rule(
+            id: "project.kotlin", title: "Kotlin compiler data", tier: .review, platform: .jvm,
+            target: .project(directory: ".kotlin", markers: gradleMarkers + ["settings.gradle", "settings.gradle.kts"]),
+            regenerate: "The next Gradle build recreates it."
+        ),
+        Rule(
+            id: "project.dotnet-obj", title: ".NET intermediate output", tier: .review, platform: .dotnet,
+            target: .project(directory: "obj", markers: dotnetMarkers, proof: "project.assets.json"),
+            regenerate: "dotnet build recreates it."
+        ),
+        Rule(
+            id: "project.dotnet-bin", title: ".NET build output", tier: .review, platform: .dotnet,
+            target: .project(directory: "bin", markers: dotnetMarkers, proof: "Debug"),
+            regenerate: "dotnet build recreates it."
+        ),
+        Rule(
+            id: "project.dotnet-bin-release", title: ".NET build output", tier: .review, platform: .dotnet,
+            target: .project(directory: "bin", markers: dotnetMarkers, proof: "Release"),
+            regenerate: "dotnet build -c Release recreates it."
+        ),
+        Rule(
+            id: "project.cmake-build", title: "CMake build folders", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "build", markers: ["CMakeLists.txt"], proof: "CMakeCache.txt"),
+            regenerate: "cmake and the next build recreate it."
+        ),
+        Rule(
+            id: "project.clion-debug", title: "CLion CMake builds", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "cmake-build-debug", markers: ["CMakeLists.txt"], proof: "CMakeCache.txt"),
+            regenerate: "CLion recreates it on the next build."
+        ),
+        Rule(
+            id: "project.clion-release", title: "CLion CMake builds", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "cmake-build-release", markers: ["CMakeLists.txt"], proof: "CMakeCache.txt"),
+            regenerate: "CLion recreates it on the next build."
+        ),
+        Rule(
+            id: "project.cabal-dist", title: "Cabal build output", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "dist-newstyle", markers: ["cabal.project", "*.cabal"]),
+            regenerate: "cabal build recreates it."
+        ),
+        Rule(
+            id: "project.mix-deps", title: "Mix dependencies", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "deps", markers: ["mix.exs"]),
+            regenerate: "mix deps.get recreates it."
+        ),
+        Rule(
+            id: "project.zig-cache-legacy", title: "Zig build cache", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "zig-cache", markers: ["build.zig"]),
+            regenerate: "zig build recreates it."
+        ),
+        Rule(
+            id: "project.zig-out", title: "Zig build output", tier: .review, platform: .otherLanguages,
+            target: .project(directory: "zig-out", markers: ["build.zig"]),
+            regenerate: "zig build recreates it."
+        ),
+        Rule(
+            id: "project.unity-library", title: "Unity Library folders", tier: .review, platform: .gameEngines,
+            target: .project(directory: "Library", markers: [unityMarker]),
+            regenerate: "Unity reimports assets the next time the project opens."
+        ),
+        Rule(
+            id: "project.unity-temp", title: "Unity temp folders", tier: .review, platform: .gameEngines,
+            target: .project(directory: "Temp", markers: [unityMarker]),
+            regenerate: "Unity recreates it while the project is open."
+        ),
+        Rule(
+            id: "project.unity-obj", title: "Unity script build output", tier: .review, platform: .gameEngines,
+            target: .project(directory: "obj", markers: [unityMarker]),
+            regenerate: "Unity and the IDE recreate it on the next script build."
+        ),
+        Rule(
+            id: "project.unreal-intermediate", title: "Unreal intermediate files", tier: .review, platform: .gameEngines,
+            target: .project(directory: "Intermediate", markers: unrealMarkers),
+            regenerate: "Unreal recreates it on the next build."
+        ),
+        Rule(
+            id: "project.unreal-ddc", title: "Unreal project derived data", tier: .review, platform: .gameEngines,
+            target: .project(directory: "DerivedDataCache", markers: unrealMarkers),
+            regenerate: "Unreal rebuilds it as the editor loads assets."
+        ),
     ]
 
     private static let gradleDaemon = "GradleDaemon"
     private static let gradleMarkers = ["build.gradle", "build.gradle.kts"]
     private static let packageMarkers = ["package.json"]
+    private static let dotnetMarkers = ["*.csproj", "*.fsproj", "*.vbproj"]
+    private static let unityMarker = "ProjectSettings/ProjectVersion.txt"
+    private static let unrealMarkers = ["*.uproject", "*.uplugin"]
     private static let pythonToolMarkers = ["pyproject.toml", "setup.cfg", "setup.py", "pytest.ini", "tox.ini", "requirements.txt"]
     private static let vscodeFolders = ["Cache", "Code Cache", "GPUCache", "CachedData", "CachedExtensionVSIXs", "CachedProfilesData", "logs", "Crashpad/completed"]
 

@@ -32,7 +32,7 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
   - **Review**: re-downloaded or rebuilt on demand (old Gradle caches and wrappers, Maven, Go modules, Conda packages, Playwright browsers, old iOS DeviceSupport, the Dart pub cache, unused Docker data).
   - **Caution**: you pick each item (Ollama, LM Studio and Hugging Face models, AVDs, unused Android system images, old NDKs, build tools and SDK platforms, simulator runtimes, Vagrant boxes, Xcode archives, device backups).
 - **Developer Tools**: everything grouped by tool family, from Apple and Android to JavaScript, Python, Rust, Go, Java, editors, AI tools and AI models. DerivedData folders are labelled with the project they belong to, and simulators and runtimes are removed through `simctl`.
-- **Flutter Projects**: finds every Flutter project on every mounted volume and lists the `build/`, `.dart_tool/`, `ios/Pods` and Gradle folders, with last activity, per-project select-all and *Select stale*.
+- **Projects**: finds every code project on every mounted volume (Flutter, Node, Rust, Gradle, Xcode/CocoaPods, Python, .NET, CMake, Unity, Unreal, Elixir, Haskell, Zig and more) and lists only the folders the next build or install recreates, with last activity, per-project select-all and *Select stale*.
 - **Project artifacts**: `node_modules`, `.next`, `.venv`, `Pods`, Gradle `build/`, Cargo and Maven `target/`, Composer `vendor/` and more are removed only when the matching marker file (`package.json`, `pyproject.toml`, `Podfile`, `build.gradle`, `Cargo.toml`, `pom.xml`, `composer.json`) sits next to them, and never in projects you touched recently.
 - **Uninstaller**: removes apps together with their leftovers, background items and Homebrew packages. It also finds leftovers of apps that are already gone.
 - **Disk Map**: a treemap of any folder or volume with drill-down.
@@ -43,9 +43,9 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 
 ## Screenshots
 
-| Xcode & Android | Flutter Projects |
+| Xcode & Android | Projects |
 |---|---|
-| ![Xcode and Android](docs/screenshots/xcode-android.png) | ![Flutter Projects](docs/screenshots/flutter-projects.png) |
+| ![Xcode and Android](docs/screenshots/xcode-android.png) | ![Projects](docs/screenshots/flutter-projects.png) |
 | **Uninstaller** | **Disk Map** |
 | ![Uninstaller](docs/screenshots/uninstaller.png) | ![Disk Map](docs/screenshots/disk-map.png) |
 | **Large Files** | |

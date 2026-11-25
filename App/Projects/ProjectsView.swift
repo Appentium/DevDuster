@@ -1,8 +1,8 @@
 import DusterCore
 import SwiftUI
 
-struct FlutterProjectsView: View {
-    @Bindable var model: FlutterProjectsModel
+struct ProjectsView: View {
+    @Bindable var model: ProjectsModel
 
     var body: some View {
         VStack(spacing: 0) {
@@ -19,7 +19,7 @@ struct FlutterProjectsView: View {
                 onClean: model.cleanSession.requestConfirmation
             )
         }
-        .navigationTitle("Flutter Projects")
+        .navigationTitle("Projects")
         .toolbar {
             ToolbarItem {
                 if model.isScanning {
@@ -59,7 +59,7 @@ struct FlutterProjectsView: View {
             Spacer()
 
             Picker("Sort", selection: $model.sortOrder) {
-                ForEach(FlutterProjectsModel.SortOrder.allCases) { order in
+                ForEach(ProjectsModel.SortOrder.allCases) { order in
                     Text(order.rawValue).tag(order)
                 }
             }
@@ -74,13 +74,13 @@ struct FlutterProjectsView: View {
     @ViewBuilder
     private var content: some View {
         if model.isScanning {
-            ProgressView("Scanning Flutter projects...")
+            ProgressView("Scanning projects...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.projects.isEmpty && model.cleanSession.summary == nil {
             ContentUnavailableView(
-                "No Flutter Projects Found",
+                "No Projects Found",
                 systemImage: "folder.badge.questionmark",
-                description: Text("No projects with a Flutter pubspec.yaml were found across mounted volumes.")
+                description: Text("No projects with build output or dependency folders were found across mounted volumes.")
             )
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -134,7 +134,7 @@ struct FlutterProjectsView: View {
 }
 
 private struct ProjectRow: View {
-    let project: FlutterProjectsModel.ProjectEntry
+    let project: ProjectsModel.ProjectEntry
     let isStale: Bool
     let folderSelections: [Binding<Bool>]
 
@@ -156,6 +156,11 @@ private struct ProjectRow: View {
                 HStack(spacing: 6) {
                     Text(project.url.lastPathComponent)
                         .font(.headline)
+                    ForEach(project.project.platforms, id: \.self) { platform in
+                        Image(systemName: platform.systemImage)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                     if isStale {
                         Text("Stale")
                             .font(.caption2.weight(.semibold))

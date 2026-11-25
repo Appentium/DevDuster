@@ -13,16 +13,20 @@ struct ProjectWalker: Sendable {
         var projectActivity: [String: Date] = [:]
 
         func activity(of artifact: Artifact) -> Date? {
+            owner(of: artifact).flatMap { projectActivity[$0] }
+        }
+
+        func owner(of artifact: Artifact) -> String? {
             // The outermost project below the search root decides, so any edit in a repo keeps all its artifacts.
             let parent = artifact.url.deletingLastPathComponent()
             guard let root = roots.first(where: { artifact.url.isInside($0) }) else { return nil }
-            var outermost = parent
+            var outermost: String?
             var current = parent
             while current.isInside(root) {
-                if projectActivity[current.filePath] != nil { outermost = current }
+                if projectActivity[current.filePath] != nil { outermost = current.filePath }
                 current = current.deletingLastPathComponent()
             }
-            return projectActivity[outermost.filePath]
+            return outermost
         }
     }
 
@@ -46,12 +50,10 @@ struct ProjectWalker: Sendable {
 
     let matcher: ProjectArtifactMatcher
     private let excluded: Set<String>
-    private let markerNames: Set<String>
 
     init(matcher: ProjectArtifactMatcher, excluded: [URL]) {
         self.matcher = matcher
         self.excluded = Set(excluded.map(\.filePath))
-        markerNames = matcher.markerNames
     }
 
     static func searchRoots(home: URL, volumes: [Volume], scope: [URL]?) -> [URL] {
@@ -93,7 +95,7 @@ struct ProjectWalker: Sendable {
             guard let info = FilePath.status(child) else { continue }
             guard FilePath.isDirectory(info) else {
                 if !FilePath.isSymlink(info) { tree.newest = max(tree.newest, info.st_mtimespec.tv_sec) }
-                hasMarker = hasMarker || markerNames.contains(child.lastPathComponent)
+                hasMarker = hasMarker || matcher.projectLevels(forFile: child.lastPathComponent) { child.filePath }.contains(0)
                 continue
             }
             switch decide(child) {
@@ -151,7 +153,9 @@ struct ProjectWalker: Sendable {
                     frames[frames.count - 1].newest = max(frames[frames.count - 1].newest, entryInfo.fts_statp.pointee.st_mtimespec.tv_sec)
                 }
                 let name = String(cString: entryInfo.fts_path + Int(entryInfo.fts_pathlen - entryInfo.fts_namelen))
-                if markerNames.contains(name) { frames[frames.count - 1].hasMarker = true }
+                for level in matcher.projectLevels(forFile: name, at: { String(cString: entryInfo.fts_path) }) where level < frames.count {
+                    frames[frames.count - 1 - level].hasMarker = true
+                }
             case FTS_DNR, FTS_ERR:
                 // Unseen files may be fresh, so an unreadable folder counts as activity now.
                 guard !frames.isEmpty else { continue }

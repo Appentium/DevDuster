@@ -4,9 +4,9 @@ import DusterCore
 
 @MainActor
 @Observable
-final class FlutterProjectsModel {
+final class ProjectsModel {
     struct ProjectEntry: Identifiable, Hashable {
-        let project: FlutterProject
+        let project: DevProject
         var folders: [ScanItem]
 
         var id: URL { project.id }
@@ -75,7 +75,7 @@ final class FlutterProjectsModel {
         let catalog = self.catalog
         let options = settings.scanOptions()
         scanTask = Task { [weak self] in
-            let scanned = await FlutterProjectScanner(catalog: catalog).scan(options)
+            let scanned = await ProjectScanner(catalog: catalog).scan(options)
             guard let self, !Task.isCancelled else { return }
             self.rawProjects = scanned.map { ProjectEntry(project: $0, folders: $0.folders) }
             self.hasScanned = true
