@@ -10,6 +10,7 @@ struct RootView: View {
     @State private var uninstallerModel = UninstallerModel()
     @State private var developerCleanerModel = CleanerModel(developerOnly: true)
     @State private var devStorageModel = DevStorageModel()
+    @State private var relocateModel = RelocateModel()
     @State private var projectsModel = ProjectsModel()
     @State private var diskMapModel = DiskMapModel()
     @State private var largeFilesModel = LargeFilesModel()
@@ -56,6 +57,8 @@ struct RootView: View {
             UninstallerView(model: uninstallerModel)
         case .developerTools:
             DeveloperToolsView(cleaner: developerCleanerModel, storage: devStorageModel)
+        case .moveTools:
+            RelocateView(model: relocateModel)
         case .projects:
             ProjectsView(model: projectsModel)
         case .diskMap:
