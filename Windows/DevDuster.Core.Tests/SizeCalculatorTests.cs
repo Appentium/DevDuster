@@ -10,16 +10,7 @@ public sealed class SizeCalculatorTests
     {
         using var fixture = new Fixture();
         var original = fixture.MakeFile("a/original.bin", bytes: 100_000);
-        string link;
-        try
-        {
-            link = fixture.At("a/link.bin");
-            File.CreateHardLink(link, original);
-        }
-        catch (Exception error) when (error is IOException or UnauthorizedAccessException or NotSupportedException)
-        {
-            link = fixture.MakeFile("a/link.bin", bytes: 100_000);
-        }
+        var link = fixture.MakeFile("a/link.bin", bytes: 100_000);
 
         // A shared id stands in for the one inode a hard link shares on every platform.
         var measure = new FakeMeasure(file => PathTools.IsSame(file.FullName, original) || PathTools.IsSame(file.FullName, link) ? "shared" : null);

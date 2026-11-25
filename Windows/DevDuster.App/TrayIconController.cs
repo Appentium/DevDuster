@@ -67,11 +67,11 @@ public sealed class TrayIconController : IDisposable
             IconSource = new BitmapImage(new Uri("ms-appx:///Assets/Tray.ico")),
             LeftClickCommand = _openCommand,
             NoLeftClickDelay = true,
-            // PopupMenu reads MenuFlyout.Items after PreviewTrayContextMenuOpen fires.
+            // The WinUI build has no menu-opening event; the right-click command refreshes the menu before the popup reads its items.
+            RightClickCommand = new RelayCommand(RefreshDriveInfo),
             ContextMenuMode = ContextMenuMode.PopupMenu,
             ContextFlyout = _menu,
         };
-        _icon.PreviewTrayContextMenuOpen += (_, _) => RefreshDriveInfo();
         RefreshDriveInfo();
         _icon.ForceCreate(enablesEfficiencyMode: false);
     }

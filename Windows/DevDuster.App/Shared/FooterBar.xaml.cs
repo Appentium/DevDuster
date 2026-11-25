@@ -92,7 +92,7 @@ public sealed partial class FooterBar : UserControl
         set => SetValue(CleanCommandProperty, value);
     }
 
-    private static string FormatSelection(int count, long bytes) => $"{count} selected · {ByteText.Format(bytes)}";
+    private string FormatSelection(int count, long bytes) => $"{count} selected · {ByteText.Format(bytes)}";
 
-    private static bool CanClean(int count, bool isBusy) => count > 0 && !isBusy;
+    private bool CanClean(int count, bool isBusy) => count > 0 && !isBusy;
 }

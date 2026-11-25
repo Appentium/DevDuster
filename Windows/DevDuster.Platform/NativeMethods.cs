@@ -64,6 +64,14 @@ internal static partial class NativeMethods
     [LibraryImport("shell32.dll", EntryPoint = "SHEmptyRecycleBinW", StringMarshalling = StringMarshalling.Utf16)]
     internal static partial int EmptyRecycleBin(nint window, string root, uint flags);
 
+    [DllImport("kernel32.dll", EntryPoint = "GetVolumePathNameW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetVolumePathName(string path, System.Text.StringBuilder mount, int length);
+
+    [DllImport("kernel32.dll", EntryPoint = "GetVolumeNameForVolumeMountPointW", CharSet = CharSet.Unicode, SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool GetVolumeName(string mount, System.Text.StringBuilder name, int length);
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
     internal static extern void SHCreateItemFromParsingName(
         string path, nint bindContext, in Guid interfaceId, out IShellItem item);

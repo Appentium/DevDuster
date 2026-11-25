@@ -6,6 +6,8 @@
     <AssemblyName>devduster-helper</AssemblyName>
     <!-- Native code has no CLR profiler or startup hooks, so user environment variables can't load code into the elevated process. -->
     <PublishAot>true</PublishAot>
+    <!-- The app publishes this through an MSBuild task, which does not imply self-contained the way dotnet publish does. -->
+    <SelfContained>true</SelfContained>
     <InvariantGlobalization>true</InvariantGlobalization>
   </PropertyGroup>
   <ItemGroup>

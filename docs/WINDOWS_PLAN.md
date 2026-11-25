@@ -80,7 +80,7 @@ Core gets every Windows call through a small interface: `IFileRemover`, `IFileMe
 - **Elevated helper:** `devduster-helper.exe` (`Windows/DevDuster.Helper`), NativeAOT so user environment variables can't load code into it. It takes one task id (`update-cache`, `component-cleanup`, `dumps`), starts with a UAC prompt from the package folder and needs `allowElevation`. The app build publishes it into the package.
 
 ## First run on the Windows PC
-1. `dotnet test Windows/DevDuster.Core.Tests`. Fix compile errors first: nothing has been built yet.
+1. `dotnet test Windows/DevDuster.Core.Tests`. A command-line app build (`dotnet build Windows/DevDuster.App -p:Platform=x64`) needs `%ProgramFiles(x86)%\Microsoft Visual Studio\Installer` on PATH, or the helper link fails with "vswhere.exe is not recognized".
 2. `dotnet run --project Windows/DevDuster.Cli -- scan` is read-only. Compare its paths with Explorer.
 3. Try a clean in a throwaway account or VM before your own profile.
 4. Open `Windows/DevDuster.slnx`, set `DevDuster.App` as startup, platform x64, run.

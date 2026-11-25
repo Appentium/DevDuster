@@ -31,7 +31,8 @@
   <Applications>
     <Application Id="App"
       Executable="$targetnametoken$.exe"
-      EntryPoint="$targetentrypoint$">
+      EntryPoint="$targetentrypoint$"
+      desktop4:SupportsMultipleInstances="true">
       <uap:VisualElements
         DisplayName="DevDuster"
         Description="Developer cache cleaner, project analyzer, and disk manager."

@@ -29,7 +29,7 @@ public sealed class DevStorageTests
 
         var resolved = Analyzer(fixture, Tool("~/mytool")).RootOf(Tool("~/mytool"));
 
-        Assert.True(PathTools.IsSame(resolved, root));
+        Assert.Equal(root, resolved, ignoreCase: true);
     }
 
     [Fact]

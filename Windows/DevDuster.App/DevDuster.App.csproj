@@ -36,7 +36,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\DevDuster.Platform\DevDuster.Platform.csproj" />
-    <ProjectReference Include="..\DevDuster.Cli\DevDuster.Cli.csproj" />
+    <ProjectReference Include="..\DevDuster.Cli\DevDuster.Cli.csproj" AdditionalProperties="RuntimeIdentifier=$(RuntimeIdentifier)" />
   </ItemGroup>
   <!-- NativeAOT only happens on publish, so a plain project reference would ship a managed helper. -->
   <Target Name="PublishNativeHelper" BeforeTargets="AssignTargetPaths" Condition="'$(RuntimeIdentifier)' != '' and '$(DesignTimeBuild)' != 'true'">
@@ -44,6 +44,8 @@
       <HelperProject>..\DevDuster.Helper\DevDuster.Helper.csproj</HelperProject>
       <HelperOutput>$(MSBuildProjectDirectory)\$(IntermediateOutputPath)helper\</HelperOutput>
     </PropertyGroup>
+    <!-- The app does not reference the helper, so nothing else restores it. The session id keeps this evaluation apart from the publish one. -->
+    <MSBuild Projects="$(HelperProject)" Targets="Restore" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);MSBuildRestoreSessionId=$([System.Guid]::NewGuid())" RemoveProperties="Platform" />
     <MSBuild Projects="$(HelperProject)" Targets="Publish" Properties="Configuration=$(Configuration);RuntimeIdentifier=$(RuntimeIdentifier);PublishDir=$(HelperOutput)" RemoveProperties="Platform" />
     <ItemGroup>
       <Content Include="$(HelperOutput)devduster-helper.exe" Link="devduster-helper.exe" CopyToOutputDirectory="PreserveNewest" />

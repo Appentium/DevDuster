@@ -22,7 +22,7 @@ public static class Program
         }
 
         keyInstance.Activated += OnActivated;
-        Application.Start(_ =>
+        Application.Start(parameters =>
         {
             var context = new DispatcherQueueSynchronizationContext(DispatcherQueue.GetForCurrentThread());
             SynchronizationContext.SetSynchronizationContext(context);

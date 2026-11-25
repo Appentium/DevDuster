@@ -74,16 +74,16 @@ public static class TreemapLayout
             return (tiles, restWide);
         }
 
-        var height = Math.Min(rect.Height, rowArea / rect.Width);
+        var rowHeight = Math.Min(rect.Height, rowArea / rect.Width);
         var x = rect.X;
         foreach (var item in row)
         {
-            var width = height > 0 ? item.Area / height : 0;
-            var raw = new TreemapRect(x, rect.Y, Math.Min(width, rect.X + rect.Width - x), height);
+            var width = rowHeight > 0 ? item.Area / rowHeight : 0;
+            var raw = new TreemapRect(x, rect.Y, Math.Min(width, rect.X + rect.Width - x), rowHeight);
             if (MakeTile(item.Node, raw) is { } tile) tiles.Add(tile);
             x += width;
         }
-        var restTall = new TreemapRect(rect.X, rect.Y + height, rect.Width, Math.Max(0, rect.Height - height));
+        var restTall = new TreemapRect(rect.X, rect.Y + rowHeight, rect.Width, Math.Max(0, rect.Height - rowHeight));
         return (tiles, restTall);
     }
 
