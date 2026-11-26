@@ -18,6 +18,18 @@
     <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
+  <!-- dotnet publish -p:Unpackaged=true builds the GitHub zip: no MSIX, so no Store limits, with the Windows App SDK runtime bundled. -->
+  <PropertyGroup Condition="'$(Unpackaged)' == 'true'">
+    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Without a package, Windows takes the taskbar and Explorer icon from the exe itself. -->
+    <ApplicationIcon>Assets\Tray.ico</ApplicationIcon>
+  </PropertyGroup>
+  <!-- An MSIX carries Content files; a plain folder only gets the ones copied to the output. -->
+  <ItemGroup Condition="'$(Unpackaged)' == 'true'">
+    <Content Update="Assets\**" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <ItemGroup>
     <Content Include="Assets\SplashScreen.png" />
     <Content Include="Assets\Square150x150Logo.png" />

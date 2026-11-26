@@ -10,7 +10,7 @@ Draft. The app is not yet published. DevDuster is an Appentium project: https://
 
 **Long description:** DevDuster finds developer caches, logs and build output on Windows and lets you remove what you choose. It uses built-in rules for tool data (Android and Gradle, JavaScript, Python, Rust, Go, JVM, PHP, Ruby, .NET, editors, AI tools, game engines and DevOps tools) and for project folders such as `node_modules` and `build`.
 
-Items are grouped as Safe (rebuilt automatically), Review (downloaded or rebuilt on demand) and Caution (you pick each item; not regenerable offline). Rules skip while their tool is running, and a guard refuses system and personal folders. Deletes go to the Recycle Bin by default; permanent delete is opt-in. Every removal is logged to `%LOCALAPPDATA%\DevDuster\Logs\clean.log`.
+Items are grouped as Safe (rebuilt automatically), Review (downloaded or rebuilt on demand) and Caution (you pick each item; not regenerable offline). Rules skip while their tool is running, and a guard refuses system and personal folders. Deletes go to the Recycle Bin by default; permanent delete is opt-in. Every removal is logged on your PC.
 
 Requires Windows 10 22H2 or later, or Windows 11, on x64 or ARM64.
 
@@ -40,13 +40,18 @@ In Partner Center, answer "Does this app access, collect or transmit personal in
 
 ## Restricted capabilities
 
-The manifest disables file-system write virtualization (`desktop6:FileSystemWriteVirtualization`) and requests three restricted capabilities. Written reason for Store review: DevDuster is a developer cache cleaner that removes files the user picks. Packaged apps normally get `AppData` writes virtualized, so a delete could miss the real file. These settings let the app delete the actual files the user selects in `%LOCALAPPDATA%`.
+The manifest requests two restricted capabilities. Written reason for Store review: DevDuster is a developer cache cleaner that removes the files the user picks.
 
-- `unvirtualizedResources`: needed with write virtualization disabled, so a delete in `%LOCALAPPDATA%` affects the real file instead of a per-app virtual copy.
-- `runFullTrust`: needed to read and remove developer files across the user profile and to expose the packaged `duster.exe` console execution alias (`Windows.FullTrustApplication`).
-- `allowElevation`: needed for the System section. After a UAC prompt, the packaged native `devduster-helper.exe` runs one of three fixed tasks (Windows Update downloads, DISM component cleanup, crash dumps). It takes no paths from the caller.
+- `runFullTrust`: needed to read and remove developer files across the user profile, and to expose the packaged `duster.exe` console execution alias (`Windows.FullTrustApplication`).
+- `allowElevation`: needed for the System section. After a UAC prompt, the packaged native `devduster-helper.exe` runs one of three fixed tasks: Windows Update downloads, DISM component cleanup or crash dumps. It takes no paths from the caller.
 
-Confirm on the Windows PC that a delete in `%LOCALAPPDATA%` is real. If review rejects this, the fallback is an unpackaged installer on winget and GitHub, signed with Azure Artifact Signing.
+Review denied `unvirtualizedResources` (policy 10.6.3) for the first submission. From 0.1.3 the package leaves `AppData` write virtualization on. On Windows 10 1903 and later, deleting and changing existing files in `AppData` reaches the real files, so the Cleaner is not affected. New files and links the app creates in `AppData` go to a private per-app copy. DevDuster's own settings, logs and move journal therefore live in the package's private folder, and `duster.exe` sees the same copy. Move Tools refuses folders inside `AppData` in the packaged build (`RelocationCatalog`, `appDataIsVirtualized`), because the junction it leaves would be invisible to the tool that owns the folder.
+
+Confirm on the Windows PC that a Recycle Bin delete and a permanent delete in `%LOCALAPPDATA%` remove the real files. If review rejects the package again, the fallback is an unpackaged installer on winget and GitHub, signed with Azure Artifact Signing.
+
+## Support contact
+
+Review asks for a valid support contact or developer website. In Partner Center → Store listing, fill **Website** with https://devduster.com and **Support contact info** with info@devduster.com. Partner Center → Account settings → Contact info should also be current.
 
 ## winget
 
@@ -55,7 +60,7 @@ After the app is published in the Microsoft Store, it is installable with winget
 ## Owner checklist
 
 - [x] Reserve the name "DevDuster" in Partner Center.
-- [x] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `AppentiumLLC.DevDuster`, `CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B`, `0.1.0.0` (package family `AppentiumLLC.DevDuster_fz2ww0hnwqzk0`).
+- [x] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `AppentiumLLC.DevDuster`, `CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B`, `0.1.3.0` (package family `AppentiumLLC.DevDuster_fz2ww0hnwqzk0`).
 - [ ] Build and test on the Windows PC; the source has never been compiled. Check a real delete in `%LOCALAPPDATA%`.
 - [ ] Take Store screenshots and redact personal data: paths, project names and account names.
 - [ ] Submit the package with the written capability justification.

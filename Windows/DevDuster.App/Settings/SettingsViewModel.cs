@@ -201,7 +201,10 @@ public sealed partial class SettingsViewModel : ObservableObject
         try
         {
             // The package folder changes with every update; the execution alias does not.
-            var cliPath = Path.Combine(_services.Folders.LocalAppData, "Microsoft", "WindowsApps", "duster.exe");
+            // The unpackaged zip has no alias, so the task runs the duster.exe next to the app.
+            var cliPath = AppServices.IsPackaged
+                ? Path.Combine(_services.Folders.LocalAppData, "Microsoft", "WindowsApps", "duster.exe")
+                : Path.Combine(AppContext.BaseDirectory, "duster.exe");
             await Task.Run(() => _services.CleanScheduler.Apply(settings, cliPath));
             ScheduleError = null;
         }

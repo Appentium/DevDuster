@@ -27,7 +27,7 @@ public sealed class AppServices
         LargeFileFinder = new LargeFileFinder(Folders, Drives, Measure);
         DiskMapBuilder = new DiskMapBuilder(Measure);
         DevStorageAnalyzer = new DevStorageAnalyzer(Folders, DevToolCatalog.BuiltIn, Measure);
-        RelocationCatalog = new RelocationCatalog(Folders, DevToolCatalog.BuiltIn, DevStorageAnalyzer);
+        RelocationCatalog = new RelocationCatalog(Folders, DevToolCatalog.BuiltIn, DevStorageAnalyzer, appDataIsVirtualized: IsPackaged);
         JunctionMaker = new JunctionMaker();
         Relocator = new Relocator(Folders, Drives, Measure, JunctionMaker);
         SettingsStore = new SettingsStore(Folders);
@@ -101,6 +101,15 @@ public sealed class AppServices
 
     // Does nothing unless the user turned on anonymous totals; a failed send is retried on the next sync.
     public void SyncStats() => _ = Stats.SyncAsync(() => Task.Run(() => new CleanHistory(CleanLog.Records()).TotalBytes));
+
+    public static bool IsPackaged
+    {
+        get
+        {
+            try { return global::Windows.ApplicationModel.Package.Current is not null; }
+            catch (InvalidOperationException) { return false; }
+        }
+    }
 
     public static string AppVersion
     {

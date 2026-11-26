@@ -145,6 +145,10 @@ The CLI commands are:
 
 Status: not yet released in the Microsoft Store. See [docs/WINDOWS_STORE.md](docs/WINDOWS_STORE.md) for the Store listing.
 
+A portable x64 build is on the [Releases page](https://github.com/Appentium/DevDuster/releases) as `DevDuster-<version>-windows-x64.zip`, in releases tagged `windows-v<version>`. Unzip it anywhere and run `DevDuster.App.exe`; `duster.exe` sits in the same folder. It has no Store limits: Move Tools can also move folders inside `AppData`. It is not code-signed yet, so Windows SmartScreen asks for confirmation the first time (More info → Run anyway). There are no automatic updates.
+
+To build it: `dotnet publish Windows/DevDuster.App -c Release -p:Platform=x64 -p:Unpackaged=true -o <folder>`.
+
 DevDuster is an Appentium project: https://appentium.com.
 
 ## License

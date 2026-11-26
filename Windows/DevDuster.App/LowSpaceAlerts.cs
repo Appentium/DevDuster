@@ -18,7 +18,16 @@ public sealed class LowSpaceAlerts
         _timer.Tick += async (_, _) => await CheckAsync();
     }
 
-    public void Start() => _timer.Start();
+    public void Start()
+    {
+        // An unpackaged app has no manifest entry for notifications, so it registers at run time.
+        if (!AppServices.IsPackaged)
+        {
+            try { AppNotificationManager.Default.Register(); }
+            catch (Exception) { }
+        }
+        _timer.Start();
+    }
 
     private async Task CheckAsync()
     {
@@ -30,7 +39,9 @@ public sealed class LowSpaceAlerts
             var alert = new AppNotificationBuilder()
                 .AddText($"{drive.Root} is low on space")
                 .AddText($"{ByteText.Format(drive.AvailableBytes)} free. Open DevDuster to clean caches.");
-            AppNotificationManager.Default.Show(alert.BuildNotification());
+            // A failed toast must not take down the timer, which runs on the UI thread.
+            try { AppNotificationManager.Default.Show(alert.BuildNotification()); }
+            catch (Exception) { return; }
         }
     }
 }

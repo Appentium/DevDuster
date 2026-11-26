@@ -4,7 +4,9 @@ using DevDuster.Core.Scan;
 
 namespace DevDuster.Core.Relocate;
 
-public sealed class RelocationCatalog(UserFolders folders, IReadOnlyList<DevTool> tools, DevStorageAnalyzer analyzer)
+// appDataIsVirtualized is true in the Store package. There Windows redirects new files and links made in AppData
+// to a private per-app copy, so a link left there would be invisible to the tool that owns the folder.
+public sealed class RelocationCatalog(UserFolders folders, IReadOnlyList<DevTool> tools, DevStorageAnalyzer analyzer, bool appDataIsVirtualized = false)
 {
     private static readonly Dictionary<string, string> BlockedReasons = new()
     {
@@ -23,6 +25,7 @@ public sealed class RelocationCatalog(UserFolders folders, IReadOnlyList<DevTool
         if (PathTools.IsLink(root)) return "Already a link to another folder.";
         if (!PathTools.IsInside(root, folders.Home)) return "Outside your profile. DevDuster moves your tool data, never apps or system folders.";
         if (PathTools.IsSameOrInside(root, Path.Combine(folders.LocalAppData, "Packages"))) return "A Store app's private folder, which can't be a link.";
+        if (appDataIsVirtualized && PathTools.IsSameOrInside(root, folders.AppData)) return "In AppData, where the Store version of DevDuster can't leave a link that other tools see.";
         if (folders.CloudFolders.Any(cloud => PathTools.IsSameOrInside(root, cloud))) return "Synced by OneDrive, which doesn't follow links.";
         return null;
     }
