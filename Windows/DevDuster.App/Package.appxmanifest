@@ -9,8 +9,8 @@
   IgnorableNamespaces="uap uap5 rescap desktop4 desktop6">
 
   <Identity
-    Name="Appentium.DevDuster"
-    Publisher="CN=Appentium LLC"
+    Name="AppentiumLLC.DevDuster"
+    Publisher="CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B"
     Version="0.1.0.0" />
 
   <Properties>
