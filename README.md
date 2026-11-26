@@ -5,12 +5,12 @@
 <h1 align="center">DevDuster</h1>
 
 <p align="center">
-  A native macOS cleaner built for software developers.<br>
+  A native cleaner for software developers, for macOS and Windows.<br>
   It finds the gigabytes that Xcode, Android Studio, Flutter, Gradle, CocoaPods and npm leave behind, and removes them safely.
 </p>
 
 <p align="center">
-  <a href="https://github.com/Appentium/DevDuster/releases/latest"><b>Download the latest release</b></a> · <a href="https://devduster.com">devduster.com</a>
+  <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster.zip"><b>Download for Mac</b></a> · <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip"><b>Download for Windows</b></a> · <a href="https://devduster.com">devduster.com</a>
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-DevDuster is a SwiftUI app with a small privileged helper and a `duster` command-line tool.
+On macOS, DevDuster is a SwiftUI app with a small privileged helper and a `duster` command-line tool. On Windows, it is a WinUI 3 app with the same tiers and its own `duster` CLI (see [Windows](#windows)).
 
 ## Why
 
@@ -64,6 +64,8 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 
 ## Install
 
+### macOS
+
 1. Download `DevDuster.zip` from the [latest release](https://github.com/Appentium/DevDuster/releases/latest), unzip it, and move **DevDuster.app** to `/Applications`.
 2. Open it and grant **Full Disk Access** when asked, so it can measure caches in protected folders.
 3. Optional: to use the **System** section, allow DevDuster's helper under **System Settings → General → Login Items & Extensions**.
@@ -78,7 +80,11 @@ brew install --cask devduster
 
 Requires macOS 14 Sonoma or later, on Apple silicon or Intel. The app is signed with a Developer ID and notarized by Apple.
 
-### Command line
+### Windows
+
+Download [`DevDuster-windows-x64.zip`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip) from the latest release, unzip it anywhere and run `DevDuster.App.exe`. Requires Windows 10 22H2 or later, or Windows 11. More in [Windows](#windows).
+
+### Command line (macOS)
 
 The `duster` tool ships inside the app:
 
@@ -143,7 +149,7 @@ The CLI commands are:
 | `duster clean [--delete] [--yes]` | Cleans the Safe tier. Moves to the Recycle Bin unless `--delete` is given; `--yes` skips the confirmation. |
 | `duster dig [path]` | Shows what fills a drive or folder, with findings. Read-only. |
 
-Status: not yet released in the Microsoft Store. See [docs/WINDOWS_STORE.md](docs/WINDOWS_STORE.md) for the Store listing.
+Microsoft Store: coming soon. See [docs/WINDOWS_STORE.md](docs/WINDOWS_STORE.md) for the Store listing.
 
 A portable x64 build ships in the same release as the Mac app: download [`DevDuster-windows-x64.zip`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip) from the [latest release](https://github.com/Appentium/DevDuster/releases/latest). Unzip it anywhere and run `DevDuster.App.exe`; `duster.exe` sits in the same folder. It has no Store limits: Move Tools can also move folders inside `AppData`. It is not code-signed yet, so Windows SmartScreen asks for confirmation the first time (More info → Run anyway). There are no automatic updates.
 
