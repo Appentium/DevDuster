@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster.zip"><b>Download for Mac</b></a> · <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip"><b>Download for Windows</b></a> · <a href="https://devduster.com">devduster.com</a>
+  <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-macos.zip"><b>Download for Mac</b></a> · <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip"><b>Download for Windows</b></a> · <a href="https://devduster.com">devduster.com</a>
 </p>
 
 <p align="center">
@@ -66,7 +66,7 @@ General Mac cleaners skip most developer data or treat it as a black box. A deve
 
 ### macOS
 
-1. Download `DevDuster.zip` from the [latest release](https://github.com/Appentium/DevDuster/releases/latest), unzip it, and move **DevDuster.app** to `/Applications`.
+1. Download `DevDuster-macos.zip` from the [latest release](https://github.com/Appentium/DevDuster/releases/latest), unzip it, and move **DevDuster.app** to `/Applications`.
 2. Open it and grant **Full Disk Access** when asked, so it can measure caches in protected folders.
 3. Optional: to use the **System** section, allow DevDuster's helper under **System Settings → General → Login Items & Extensions**.
 
@@ -124,7 +124,7 @@ Bump `MARKETING_VERSION` in `project.yml`, commit, then run:
 make release
 ```
 
-It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to the update feed and the Homebrew cask, and publishes `DevDuster.zip` as a GitHub release. The feed (`appcast.xml`) lives in the private website repo, expected next to this one as `../devduster-website` or at `DEVDUSTER_SITE`. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
+It archives the app, signs it with Developer ID, sends it to Apple for notarization, waits for approval, staples the ticket, signs the zip for Sparkle (the private EdDSA key lives in the login Keychain), adds it to the update feed and the Homebrew cask, and publishes `DevDuster-macos.zip` as a GitHub release. The feed (`appcast.xml`) lives in the private website repo, expected next to this one as `../devduster-website` or at `DEVDUSTER_SITE`. If the wait times out, `scripts/release.sh --resume` picks up from the notarization step. It needs the `gh` CLI signed in and the team's Apple ID in Xcode.
 
 ## Windows
 

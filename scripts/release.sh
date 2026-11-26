@@ -40,16 +40,16 @@ app="$out/notarized/DevDuster.app"
 xcrun stapler validate "$app"
 spctl --assess --type execute "$app"
 
-ditto -c -k --keepParent "$app" "$out/DevDuster.zip"
+ditto -c -k --keepParent "$app" "$out/DevDuster-macos.zip"
 
 [[ -x "$sparkle_bin/sign_update" ]] || xcodebuild -resolvePackageDependencies -project DevDuster.xcodeproj -scheme DevDuster -derivedDataPath build/DerivedData -quiet
 # sign_update reads the private EdDSA key from the login Keychain and prints sparkle:edSignature and length.
-signature=$("$sparkle_bin/sign_update" "$out/DevDuster.zip")
+signature=$("$sparkle_bin/sign_update" "$out/DevDuster-macos.zip")
 [[ "$signature" =~ 'sparkle:edSignature="([^"]+)" length="([0-9]+)"' ]] || { echo "Could not sign the zip: $signature"; exit 1; }
 scripts/update_appcast.py "$appcast" "$version" "$build" "$minimum_os" "${match[2]}" "${match[1]}" \
-  "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster.zip"
+  "https://github.com/Appentium/DevDuster/releases/download/$tag/DevDuster-macos.zip"
 
-sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster.zip" | cut -d' ' -f1)\"/" Casks/devduster.rb
+sed -i '' -E -e "s/^  version \".*\"/  version \"$version\"/" -e "s/^  sha256 \".*\"/  sha256 \"$(shasum -a 256 "$out/DevDuster-macos.zip" | cut -d' ' -f1)\"/" Casks/devduster.rb
 
-gh release create "$tag" "$out/DevDuster.zip" --title "DevDuster $version" --generate-notes
+gh release create "$tag" "$out/DevDuster-macos.zip" --title "DevDuster $version" --generate-notes
 echo "Published $tag. Commit and push Casks/devduster.rb; commit $appcast and upload it to devduster.com."
