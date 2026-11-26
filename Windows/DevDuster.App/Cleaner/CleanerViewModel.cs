@@ -102,7 +102,12 @@ public sealed partial class CleanerViewModel : ObservableObject
         SkippedItems = [];
         StatusText = "Scan your profile and drives for caches, logs, and stale build outputs.";
         ScanButtonLabel = "Scan";
+        CleanProgress.Starting += item =>
+            CleanRows.MarkDeleting(_allItems, row => PathTools.Comparer.Equals(row.Path, item!.Path), item);
+        CleanProgress.Finished += ApplyCleanResults;
     }
+
+    public CleanProgress CleanProgress { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBusy))]

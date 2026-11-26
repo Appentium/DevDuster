@@ -9,7 +9,7 @@ using Microsoft.UI.Xaml.Media;
 
 namespace DevDuster.App.DeveloperTools;
 
-public sealed partial class DevPartViewModel : ObservableObject
+public sealed partial class DevPartViewModel : CleanRow
 {
     private readonly Action _selectionChanged;
 
@@ -84,7 +84,12 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
         ReviewTotalText = "0 B";
         EssentialTotalText = "0 B";
         OtherTotalText = "0 B";
+        // Cards are rebuilt from a fresh measurement once the run ends, so parts are only marked while it runs.
+        CleanProgress.Starting += item => CleanRows.MarkDeleting(
+            Tools.SelectMany(t => t.Parts), part => part.Part.Items.Any(i => PathTools.Comparer.Equals(i.Path, item!.Path)), item);
     }
+
+    public CleanProgress CleanProgress { get; } = new();
 
     public ScanStatus Status { get; } = new();
 

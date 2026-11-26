@@ -125,7 +125,13 @@ final class ProjectsModel {
     }
 
     func cleanSelected() async {
-        let removedIDs = await cleanSession.clean(items: selectedItems, catalog: catalog)
+        let removedIDs = await cleanSession.clean(items: selectedItems, catalog: catalog) { [weak self] id in
+            guard let self else { return }
+            self.rawProjects = self.rawProjects.map { entry in
+                ProjectEntry(project: entry.project, folders: entry.folders.filter { $0.id != id })
+            }
+            self.selectedIDs.remove(id)
+        }
         guard !removedIDs.isEmpty else { return }
         rawProjects = rawProjects.map { entry in
             ProjectEntry(

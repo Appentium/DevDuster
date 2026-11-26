@@ -42,7 +42,8 @@ struct CleanerView: View {
                 moveToTrash: $model.cleanSession.moveToTrash,
                 isDisabled: model.selectedItems.isEmpty || model.isScanning,
                 isCleaning: model.cleanSession.isCleaning,
-                onClean: model.cleanSession.requestConfirmation
+                onClean: model.cleanSession.requestConfirmation,
+                progress: model.cleanSession.progress
             )
         }
         .navigationTitle("Cleaner")
@@ -141,6 +142,7 @@ struct CleanerView: View {
                                 ScanItemRow(
                                     item: item,
                                     isSelected: model.selectedIDs.contains(item.id),
+                                    isDeleting: model.cleanSession.deletingID == item.id,
                                     onToggle: { model.toggleItem(item) }
                                 )
                             }
@@ -216,6 +218,7 @@ private struct RuleHeaderRow: View {
 private struct ScanItemRow: View {
     let item: ScanItem
     let isSelected: Bool
+    let isDeleting: Bool
     let onToggle: () -> Void
 
     var body: some View {
@@ -238,6 +241,10 @@ private struct ScanItemRow: View {
             }
 
             Spacer()
+
+            if isDeleting {
+                DeletingBadge()
+            }
 
             Text(ByteFormatter.string(item.bytes))
                 .font(.callout.monospacedDigit())

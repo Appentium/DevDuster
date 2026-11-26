@@ -36,7 +36,7 @@ public sealed partial class DeveloperToolsPage : Page
         ViewModel.IsCleaning = true;
         try
         {
-            var results = await CleanFlow.ExecuteAsync(App.Current.Services, XamlRoot, ViewModel.SelectedScanItems);
+            var results = await CleanFlow.ExecuteAsync(App.Current.Services, XamlRoot, ViewModel.SelectedScanItems, progress: ViewModel.CleanProgress);
             if (results is not null) await ViewModel.ApplyCleanResultsAsync(results);
         }
         finally

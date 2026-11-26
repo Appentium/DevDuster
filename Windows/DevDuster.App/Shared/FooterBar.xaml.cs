@@ -19,7 +19,7 @@ public sealed partial class FooterBar : UserControl
         DependencyProperty.Register(nameof(CanDeselectAll), typeof(bool), typeof(FooterBar), new PropertyMetadata(false));
 
     public static readonly DependencyProperty IsBusyProperty =
-        DependencyProperty.Register(nameof(IsBusy), typeof(bool), typeof(FooterBar), new PropertyMetadata(false));
+        DependencyProperty.Register(nameof(IsBusy), typeof(bool), typeof(FooterBar), new PropertyMetadata(false, OnBusyChanged));
 
     public static readonly DependencyProperty ActionTitleProperty =
         DependencyProperty.Register(nameof(ActionTitle), typeof(string), typeof(FooterBar), new PropertyMetadata("Clean"));
@@ -33,10 +33,56 @@ public sealed partial class FooterBar : UserControl
     public static readonly DependencyProperty CleanCommandProperty =
         DependencyProperty.Register(nameof(CleanCommand), typeof(ICommand), typeof(FooterBar), new PropertyMetadata(null));
 
+    public static readonly DependencyProperty ProgressProperty =
+        DependencyProperty.Register(nameof(Progress), typeof(CleanProgress), typeof(FooterBar), new PropertyMetadata(null, OnProgressChanged));
+
+    private static readonly DependencyProperty IsDeletingProperty =
+        DependencyProperty.Register(nameof(IsDeleting), typeof(bool), typeof(FooterBar), new PropertyMetadata(false, OnBusyChanged));
+
+    private static readonly DependencyProperty ShowsSpinnerProperty =
+        DependencyProperty.Register(nameof(ShowsSpinner), typeof(bool), typeof(FooterBar), new PropertyMetadata(false));
+
     public FooterBar()
     {
         InitializeComponent();
     }
+
+    // While a clean runs, the footer shows a progress bar in place of the selection summary.
+    public CleanProgress? Progress
+    {
+        get => (CleanProgress?)GetValue(ProgressProperty);
+        set => SetValue(ProgressProperty, value);
+    }
+
+    public bool IsDeleting
+    {
+        get => (bool)GetValue(IsDeletingProperty);
+        private set => SetValue(IsDeletingProperty, value);
+    }
+
+    public bool ShowsSpinner
+    {
+        get => (bool)GetValue(ShowsSpinnerProperty);
+        private set => SetValue(ShowsSpinnerProperty, value);
+    }
+
+    private static void OnProgressChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args)
+    {
+        var footer = (FooterBar)sender;
+        if (args.OldValue is CleanProgress old) old.PropertyChanged -= footer.OnProgressPropertyChanged;
+        if (args.NewValue is CleanProgress progress) progress.PropertyChanged += footer.OnProgressPropertyChanged;
+        footer.IsDeleting = footer.Progress?.IsActive == true;
+    }
+
+    private void OnProgressPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(CleanProgress.IsActive)) IsDeleting = Progress?.IsActive == true;
+    }
+
+    private static void OnBusyChanged(DependencyObject sender, DependencyPropertyChangedEventArgs args) =>
+        ((FooterBar)sender).UpdateSpinner();
+
+    private void UpdateSpinner() => ShowsSpinner = IsBusy && !IsDeleting;
 
     public int SelectedCount
     {

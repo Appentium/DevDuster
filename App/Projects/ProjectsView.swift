@@ -28,7 +28,8 @@ struct ProjectsView: View {
                 moveToTrash: $model.cleanSession.moveToTrash,
                 isDisabled: model.selectedItems.isEmpty || model.isScanning,
                 isCleaning: model.cleanSession.isCleaning,
-                onClean: model.cleanSession.requestConfirmation
+                onClean: model.cleanSession.requestConfirmation,
+                progress: model.cleanSession.progress
             )
         }
         .navigationTitle("Projects")
@@ -125,7 +126,8 @@ struct ProjectsView: View {
                             FolderRow(
                                 folder: folder,
                                 projectURL: project.url,
-                                isSelected: selection(for: folder)
+                                isSelected: selection(for: folder),
+                                isDeleting: model.cleanSession.deletingID == folder.id
                             )
                         }
                     }
@@ -209,6 +211,7 @@ private struct FolderRow: View {
     let folder: ScanItem
     let projectURL: URL
     let isSelected: Binding<Bool>
+    let isDeleting: Bool
 
     private var relativeName: String {
         let base = projectURL.path(percentEncoded: false)
@@ -232,6 +235,10 @@ private struct FolderRow: View {
                 .font(.body.monospaced())
 
             Spacer()
+
+            if isDeleting {
+                DeletingBadge()
+            }
 
             Text(ByteFormatter.string(folder.bytes))
                 .font(.callout.monospacedDigit())

@@ -6,7 +6,8 @@ struct DeveloperToolsView: View {
     let storage: DevStorageModel
 
     private var finishedItems: [ScanItem]? {
-        cleaner.isScanning || !cleaner.hasScanned ? nil : cleaner.items
+        // Items drop out one by one while a clean runs; measure again once it is over.
+        cleaner.isScanning || !cleaner.hasScanned || cleaner.cleanSession.isCleaning ? nil : cleaner.items
     }
 
     var body: some View {
@@ -35,7 +36,8 @@ struct DeveloperToolsView: View {
                 moveToTrash: $cleaner.cleanSession.moveToTrash,
                 isDisabled: cleaner.selectedItems.isEmpty || cleaner.isScanning,
                 isCleaning: cleaner.cleanSession.isCleaning,
-                onClean: cleaner.cleanSession.requestConfirmation
+                onClean: cleaner.cleanSession.requestConfirmation,
+                progress: cleaner.cleanSession.progress
             )
         }
         .navigationTitle("Developer Tools")
@@ -96,7 +98,12 @@ struct DeveloperToolsView: View {
     @ViewBuilder
     private var content: some View {
         if cleaner.hasScanned {
-            DevStorageView(model: storage, selectedIDs: cleaner.selectedIDs, onTogglePart: cleaner.toggleItems)
+            DevStorageView(
+                model: storage,
+                selectedIDs: cleaner.selectedIDs,
+                deletingID: cleaner.cleanSession.deletingID,
+                onTogglePart: cleaner.toggleItems
+            )
         } else if cleaner.isScanning {
             ProgressView("Scanning...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

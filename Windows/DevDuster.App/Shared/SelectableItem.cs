@@ -4,7 +4,7 @@ using DevDuster.Core.Scan;
 
 namespace DevDuster.App.Shared;
 
-public sealed partial class SelectableItem : ObservableObject
+public sealed partial class SelectableItem : CleanRow
 {
     public SelectableItem(ScanItem item, bool isSelected = false)
     {

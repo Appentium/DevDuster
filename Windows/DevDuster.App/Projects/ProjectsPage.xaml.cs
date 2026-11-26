@@ -42,7 +42,7 @@ public sealed partial class ProjectsPage : Page
         ViewModel.IsCleaning = true;
         try
         {
-            var results = await CleanFlow.ExecuteAsync(App.Current.Services, XamlRoot, ViewModel.SelectedScanItems);
+            var results = await CleanFlow.ExecuteAsync(App.Current.Services, XamlRoot, ViewModel.SelectedScanItems, progress: ViewModel.CleanProgress);
             if (results is not null) ViewModel.ApplyCleanResults(results);
         }
         finally

@@ -6,7 +6,7 @@ using DevDuster.Core.Scan;
 
 namespace DevDuster.App.Projects;
 
-public sealed partial class ProjectFolderViewModel : ObservableObject
+public sealed partial class ProjectFolderViewModel : CleanRow
 {
     private readonly Action _selectionChanged;
 
@@ -112,7 +112,12 @@ public sealed partial class ProjectsViewModel : ObservableObject
         Projects = [];
         StatusText = "Scan for projects with build outputs or dependency folders.";
         ScanButtonLabel = "Scan";
+        CleanProgress.Starting += item => CleanRows.MarkDeleting(
+            _rawProjects.SelectMany(p => p.Folders), row => PathTools.Comparer.Equals(row.FullPath, item!.Path), item);
+        CleanProgress.Finished += ApplyCleanResults;
     }
+
+    public CleanProgress CleanProgress { get; } = new();
 
     public ScanLocation Location { get; }
     public ScanStatus Status { get; } = new();

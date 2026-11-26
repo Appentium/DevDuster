@@ -126,7 +126,11 @@
                                                     </Grid.ColumnDefinitions>
                                                     <CheckBox IsChecked="{x:Bind IsChecked, Mode=TwoWay}" MinWidth="0" VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="1" Text="{x:Bind RelativePath}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
-                                                    <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <ProgressRing Width="14" Height="14" MinWidth="0" MinHeight="0" IsActive="{x:Bind IsDeleting, Mode=OneWay}" Visibility="{x:Bind shared:Ui.Visible(IsDeleting), Mode=OneWay}" />
+                                                        <TextBlock Text="Deleting…" VerticalAlignment="Center" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" Visibility="{x:Bind shared:Ui.Visible(IsDeleting), Mode=OneWay}" />
+                                                        <TextBlock Text="{x:Bind SizeText}" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                                                    </StackPanel>
                                                     <Button Grid.Column="3" Tag="{x:Bind FullPath}" Click="OnRevealClicked" AutomationProperties.Name="Reveal in Explorer" ToolTipService.ToolTip="Reveal in Explorer">
                                                         <SymbolIcon Symbol="Folder" />
                                                     </Button>
@@ -149,6 +153,7 @@
             CanSelectAll="{x:Bind ViewModel.CanSelectAll, Mode=OneWay}"
             CanDeselectAll="{x:Bind ViewModel.CanDeselectAll, Mode=OneWay}"
             IsBusy="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
+            Progress="{x:Bind ViewModel.CleanProgress}"
             SelectAllCommand="{x:Bind ViewModel.SelectAllCommand}"
             DeselectAllCommand="{x:Bind ViewModel.DeselectAllCommand}"
             CleanCommand="{x:Bind CleanCommand}" />

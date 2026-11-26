@@ -9,7 +9,8 @@ namespace DevDuster.App.Shared;
 public static class CleanFlow
 {
     public static async Task<IReadOnlyList<CleanResult>?> ExecuteAsync(
-        AppServices services, XamlRoot? xamlRoot, IReadOnlyList<ScanItem> items, bool moveToRecycleBin = true, string? note = null)
+        AppServices services, XamlRoot? xamlRoot, IReadOnlyList<ScanItem> items, bool moveToRecycleBin = true, string? note = null,
+        CleanProgress? progress = null)
     {
         if (items.Count == 0 || xamlRoot is null) return null;
         if (await GradeAsync(services, xamlRoot, items) is not { } graded) return null;
@@ -20,7 +21,20 @@ public static class CleanFlow
         var confirm = new CleanConfirmDialog(allowed, moveToRecycleBin || recycleOnly, notes, recycleOnly) { XamlRoot = xamlRoot };
         if (await confirm.ShowAsync() != ContentDialogResult.Primary) return null;
         var mode = confirm.MoveToRecycleBin ? CleanMode.Recycle : CleanMode.Delete;
-        var results = await services.Cleaner.CleanAsync(allowed, mode, null, CancellationToken.None);
+        IReadOnlyList<CleanResult> results;
+        progress?.Begin(allowed);
+        try
+        {
+            // Progress<T> posts back to the UI thread, so the page sees each item as it finishes.
+            var reporter = progress is null ? null : new Progress<CleanResult>(progress.Report);
+            results = await services.Cleaner.CleanAsync(allowed, mode, reporter, CancellationToken.None);
+            // Let the last posted report land before the run is closed.
+            await Task.Yield();
+        }
+        finally
+        {
+            progress?.End();
+        }
         services.NotifyHistoryChanged();
         var summary = new CleanSummaryDialog(results, mode) { XamlRoot = xamlRoot };
         await summary.ShowAsync();

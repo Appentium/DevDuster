@@ -133,11 +133,16 @@ struct LargeFilesView: View {
                 .width(min: 150, ideal: 220)
 
                 TableColumn("Size", value: \.bytes) { file in
-                    Text(ByteFormatter.string(file.bytes))
-                        .monospacedDigit()
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    HStack(spacing: 6) {
+                        Spacer(minLength: 0)
+                        if model.isDeleting(file) {
+                            DeletingBadge()
+                        }
+                        Text(ByteFormatter.string(file.bytes))
+                            .monospacedDigit()
+                    }
                 }
-                .width(min: 80, ideal: 100, max: 120)
+                .width(min: 80, ideal: 100, max: 200)
 
                 TableColumn("Modified", value: \.modified) { file in
                     Text(file.modified.formatted(date: .abbreviated, time: .shortened))

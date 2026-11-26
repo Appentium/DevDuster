@@ -8,6 +8,15 @@ struct CleanIssue: Identifiable, Hashable {
     let reason: String
 }
 
+struct CleanProgress: Equatable {
+    let total: Int
+    var done = 0
+    var freedBytes: Int64 = 0
+
+    var fraction: Double { total == 0 ? 0 : Double(done) / Double(total) }
+    var label: String { "Deleting \(min(done + 1, total)) of \(total) · \(ByteFormatter.string(freedBytes)) freed" }
+}
+
 struct CleanSummary {
     let freedBytes: Int64
     let cleanedCount: Int
@@ -24,6 +33,12 @@ final class CleanSessionModel {
     private(set) var isCleaning = false
     private(set) var summary: CleanSummary?
     private(set) var emptiedVolumeIDs: Set<URL> = []
+    /// Set while a clean runs, for the footer's progress bar.
+    private(set) var progress: CleanProgress?
+    /// The item being deleted right now, so its row can say so.
+    private(set) var deletingID: ScanItem.ID?
+    @ObservationIgnored private var runItems: [ScanItem] = []
+    @ObservationIgnored private var onItemCleaned: (ScanItem.ID) -> Void = { _ in }
     var emptyTrash = EmptyTrashModel()
 
     func requestConfirmation() {
@@ -39,15 +54,30 @@ final class CleanSessionModel {
         emptiedVolumeIDs.insert(volume.id)
     }
 
-    func clean(items: [ScanItem], catalog: RuleCatalog) async -> Set<ScanItem.ID> {
+    /// `onItemCleaned` runs as each item is removed, so the list can drop it straight away.
+    func clean(
+        items: [ScanItem],
+        catalog: RuleCatalog,
+        onItemCleaned: @escaping (ScanItem.ID) -> Void = { _ in }
+    ) async -> Set<ScanItem.ID> {
         guard !items.isEmpty else { return [] }
         isConfirming = false
         isCleaning = true
         emptiedVolumeIDs = []
+        runItems = items
+        self.onItemCleaned = onItemCleaned
+        progress = CleanProgress(total: items.count)
+        deletingID = items.first?.id
         let mode: CleanMode = moveToTrash ? .trash : .delete
         // An external drive scan uses the drive as the catalog home, but the log stays in the user's own Library.
         let log = CleanLog(home: FileManager.default.homeDirectoryForCurrentUser)
-        let results = await Cleaner(catalog: catalog, log: log).clean(items: items, mode: mode)
+        let results = await Cleaner(catalog: catalog, log: log).clean(items: items, mode: mode) { [weak self] result in
+            await self?.record(result)
+        }
+        progress = nil
+        deletingID = nil
+        runItems = []
+        self.onItemCleaned = { _ in }
         let volumeService = VolumeService()
         let volumes = mode == .trash ? await Self.loadVolumes(using: volumeService) : []
 
@@ -88,6 +118,15 @@ final class CleanSessionModel {
         isCleaning = false
         StatsSharing.sync()
         return cleanedIDs
+    }
+
+    private func record(_ result: CleanResult) {
+        guard var current = progress else { return }
+        current.done += 1
+        if result.error == nil { current.freedBytes += result.item.bytes }
+        progress = current
+        deletingID = current.done < runItems.count ? runItems[current.done].id : nil
+        if result.error == nil { onItemCleaned(result.item.id) }
     }
 
     private static func loadVolumes(using service: VolumeService) async -> [Volume] {

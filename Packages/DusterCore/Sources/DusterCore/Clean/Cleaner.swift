@@ -40,11 +40,18 @@ public struct Cleaner: Sendable {
         simulators = Simulators(home: catalog.home)
     }
 
-    @concurrent public func clean(items: [ScanItem], mode: CleanMode = .trash) async -> [CleanResult] {
+    /// Cleans items in order. `progress` hears about each item as soon as it is done.
+    @concurrent public func clean(
+        items: [ScanItem],
+        mode: CleanMode = .trash,
+        progress: (@Sendable (CleanResult) async -> Void)? = nil
+    ) async -> [CleanResult] {
         var results: [CleanResult] = []
         for item in items {
             if Task.isCancelled { break }
-            results.append(clean(item, mode: mode))
+            let result = clean(item, mode: mode)
+            results.append(result)
+            await progress?(result)
         }
         return results
     }

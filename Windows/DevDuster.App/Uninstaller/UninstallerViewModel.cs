@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevDuster.App.Shared;
+using DevDuster.Core.Clean;
 using DevDuster.Core.Scan;
 using DevDuster.Core.Uninstall;
 using Microsoft.UI.Xaml;
@@ -18,7 +19,7 @@ public sealed record ProgramRowViewModel(InstalledProgram Program)
     public bool HasInstallLocation => !string.IsNullOrWhiteSpace(Program.InstallLocation);
 }
 
-public sealed partial class LeftoverRowViewModel(Leftover leftover, Action selectionChanged) : ObservableObject
+public sealed partial class LeftoverRowViewModel(Leftover leftover, Action selectionChanged) : CleanRow
 {
     public Core.Scan.ScanItem Item => leftover.Item;
     public string Name => leftover.Item.Name;
@@ -53,7 +54,12 @@ public sealed partial class UninstallerViewModel : ObservableObject
         SearchText = "";
         CountText = "";
         Leftovers = [];
+        CleanProgress.Starting += item =>
+            CleanRows.MarkDeleting(Leftovers, row => row.Item == item, item);
+        CleanProgress.Finished += RemoveCleanedLeftovers;
     }
+
+    public CleanProgress CleanProgress { get; } = new();
 
     [ObservableProperty]
     public partial IReadOnlyList<LeftoverRowViewModel> Leftovers { get; set; }
@@ -167,17 +173,23 @@ public sealed partial class UninstallerViewModel : ObservableObject
         try
         {
             var items = Leftovers.Where(row => row.IsSelected).Select(row => row.Item).ToList();
-            var results = await CleanFlow.ExecuteAsync(_services, xamlRoot, items, note: "Check each folder first: it may hold settings or data you want to keep.");
-            if (results is null) return;
-            var removed = results.Where(result => result.Succeeded).Select(result => result.Item).ToHashSet();
-            Leftovers = [.. Leftovers.Where(row => !removed.Contains(row.Item))];
-            HasNoLeftovers = Leftovers.Count == 0;
-            UpdateSelection();
+            var results = await CleanFlow.ExecuteAsync(_services, xamlRoot, items, note: "Check each folder first: it may hold settings or data you want to keep.",
+                progress: CleanProgress);
+            if (results is not null) RemoveCleanedLeftovers(results);
         }
         finally
         {
             IsCleaning = false;
         }
+    }
+
+    private void RemoveCleanedLeftovers(IReadOnlyList<CleanResult> results)
+    {
+        var removed = results.Where(result => result.Succeeded).Select(result => result.Item).ToHashSet();
+        if (removed.Count == 0) return;
+        Leftovers = [.. Leftovers.Where(row => !removed.Contains(row.Item))];
+        HasNoLeftovers = Leftovers.Count == 0;
+        UpdateSelection();
     }
 
     private async Task FindLeftoversAsync(IReadOnlyList<InstalledProgram> listed)

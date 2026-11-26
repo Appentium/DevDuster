@@ -120,7 +120,12 @@ final class CleanerModel {
     }
 
     func cleanSelected() async {
-        let removedIDs = await cleanSession.clean(items: selectedItems, catalog: catalog)
+        let removedIDs = await cleanSession.clean(items: selectedItems, catalog: catalog) { [weak self] id in
+            guard let self else { return }
+            self.items.removeAll { $0.id == id }
+            self.selectedIDs.remove(id)
+            self.rebuildGroups()
+        }
         guard !removedIDs.isEmpty else { return }
         items.removeAll { removedIDs.contains($0.id) }
         selectedIDs.subtract(removedIDs)

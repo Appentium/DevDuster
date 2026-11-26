@@ -8,7 +8,7 @@ using DevDuster.Core.Scan;
 
 namespace DevDuster.App.LargeFiles;
 
-public sealed partial class LargeFileRowViewModel : ObservableObject
+public sealed partial class LargeFileRowViewModel : CleanRow
 {
     private readonly Action _selectionChanged;
 
@@ -66,8 +66,13 @@ public sealed partial class LargeFilesViewModel : ObservableObject
         ScanButtonLabel = "Scan";
         SelectedMinSizeIndex = 1;
         SelectedAgeIndex = 0;
+        CleanProgress.Starting += item =>
+            CleanRows.MarkDeleting(_rawFiles, row => PathTools.Comparer.Equals(row.FullPath, item!.Path), item);
+        CleanProgress.Finished += ApplyCleanResults;
         _initialized = true;
     }
+
+    public CleanProgress CleanProgress { get; } = new();
 
     public ScanLocation Location { get; }
     public ScanStatus Status { get; } = new();

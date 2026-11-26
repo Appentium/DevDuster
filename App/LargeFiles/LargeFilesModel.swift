@@ -144,6 +144,11 @@ import DusterCore
         FinderActions.reveal(targets.map(\.url))
     }
 
+    func isDeleting(_ file: LargeFile) -> Bool {
+        guard let id = cleanSession.deletingID else { return false }
+        return id == ScanItem.userSelected(url: file.url, bytes: file.bytes).id
+    }
+
     func requestDelete(_ targets: [LargeFile]) {
         guard !targets.isEmpty else { return }
         pendingDeletion = targets
@@ -156,7 +161,12 @@ import DusterCore
         guard !targets.isEmpty else { return }
 
         let items = targets.map { ScanItem.userSelected(url: $0.url, bytes: $0.bytes) }
-        let cleanedIDs = await cleanSession.clean(items: items, catalog: catalog)
+        let paths = Dictionary(items.map { ($0.id, $0.url.path(percentEncoded: false)) }, uniquingKeysWith: { first, _ in first })
+        let cleanedIDs = await cleanSession.clean(items: items, catalog: catalog) { [weak self] id in
+            guard let self, let path = paths[id] else { return }
+            self.files.removeAll { $0.path == path }
+            self.selection.remove(path)
+        }
         guard !cleanedIDs.isEmpty else { return }
 
         let removedPaths = Set(items.filter { cleanedIDs.contains($0.id) }.map { $0.url.path(percentEncoded: false) })

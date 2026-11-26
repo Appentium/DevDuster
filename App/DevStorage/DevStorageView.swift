@@ -4,6 +4,7 @@ import SwiftUI
 struct DevStorageView: View {
     let model: DevStorageModel
     let selectedIDs: Set<ScanItem.ID>
+    var deletingID: ScanItem.ID? = nil
     let onTogglePart: ([ScanItem]) -> Void
 
     var body: some View {
@@ -35,6 +36,7 @@ struct DevStorageView: View {
                             usage: usage,
                             share: Double(usage.totalBytes) / Double(max(1, model.totalBytes)),
                             selectedIDs: selectedIDs,
+                            deletingID: deletingID,
                             onTogglePart: onTogglePart
                         )
                     }
@@ -116,6 +118,7 @@ private struct ToolCard: View {
     let usage: DevToolUsage
     let share: Double
     let selectedIDs: Set<ScanItem.ID>
+    let deletingID: ScanItem.ID?
     let onTogglePart: ([ScanItem]) -> Void
     @State private var isExpanded = true
 
@@ -128,6 +131,7 @@ private struct ToolCard: View {
                     PartRow(
                         part: part,
                         isSelected: !part.items.isEmpty && part.items.allSatisfy { selectedIDs.contains($0.id) },
+                        isDeleting: deletingID.map { id in part.items.contains { $0.id == id } } ?? false,
                         onToggle: { onTogglePart(part.items) }
                     )
                 }
@@ -199,6 +203,7 @@ private struct PartsBar: View {
 private struct PartRow: View {
     let part: DevStoragePart
     let isSelected: Bool
+    let isDeleting: Bool
     let onToggle: () -> Void
 
     var body: some View {
@@ -218,6 +223,9 @@ private struct PartRow: View {
             }
             Text(part.title)
             Spacer()
+            if isDeleting {
+                DeletingBadge()
+            }
             Text(ByteFormatter.string(part.bytes))
                 .font(.callout.monospacedDigit())
                 .foregroundStyle(.secondary)

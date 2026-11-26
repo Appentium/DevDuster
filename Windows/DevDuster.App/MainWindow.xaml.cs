@@ -32,6 +32,7 @@ public sealed partial class MainWindow : Window
         SystemBackdrop = new MicaBackdrop();
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);
+        FitToWorkArea();
         ApplyTheme(services.Settings.Theme);
         services.ThemeChanged += OnThemeChanged;
         services.NavigationRequested += OnNavigationRequested;
@@ -48,7 +49,23 @@ public sealed partial class MainWindow : Window
     public void ShowFromTray()
     {
         this.Show();
+        FitToWorkArea();
         Activate();
+    }
+
+    // A restored window can be taller than the space above the taskbar, which hides each page's footer buttons.
+    private void FitToWorkArea()
+    {
+        if (AppWindow.Presenter is OverlappedPresenter { State: not OverlappedPresenterState.Restored }) return;
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Nearest).WorkArea;
+        var size = AppWindow.Size;
+        var position = AppWindow.Position;
+        var width = Math.Min(size.Width, work.Width);
+        var height = Math.Min(size.Height, work.Height);
+        var x = Math.Clamp(position.X, work.X, work.X + work.Width - width);
+        var y = Math.Clamp(position.Y, work.Y, work.Y + work.Height - height);
+        if (width == size.Width && height == size.Height && x == position.X && y == position.Y) return;
+        AppWindow.MoveAndResize(new Windows.Graphics.RectInt32(x, y, width, height));
     }
 
     private void ScanNow()
