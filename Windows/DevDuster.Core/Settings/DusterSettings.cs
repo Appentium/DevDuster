@@ -55,8 +55,8 @@ public sealed class DusterSettings
     public bool TrayEnabled { get; set; } = true;
     public AppThemeChoice Theme { get; set; } = AppThemeChoice.System;
 
-    // Opt-in anonymous totals for the devduster.com counter; off until the user turns it on.
-    public bool ShareStats { get; set; }
+    // Anonymous totals for the devduster.com counter; on by default, with a one-time notice after the first clean.
+    public bool ShareStats { get; set; } = true;
     public bool ShareStatsAsked { get; set; }
     public string? StatsInstallId { get; set; }
     public string? StatsPendingRemovalId { get; set; }

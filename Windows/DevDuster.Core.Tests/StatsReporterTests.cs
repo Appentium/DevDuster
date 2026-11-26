@@ -36,12 +36,24 @@ public sealed class StatsReporterTests
     private static Func<Task<long>> Bytes(long value) => () => Task.FromResult(value);
 
     [Fact]
-    public async Task SendsNothingUntilEnabled()
+    public async Task SharesByDefaultOnlyAfterTheNotice()
     {
         var (reporter, settings, handler, _) = Make();
+        Assert.True(settings.ShareStats);
         await reporter.SyncAsync(Bytes(500));
         Assert.Empty(handler.Bodies);
-        Assert.False(settings.ShareStats);
+        settings.ShareStatsAsked = true;
+        await reporter.SyncAsync(Bytes(500));
+        Assert.Single(handler.Bodies);
+    }
+
+    [Fact]
+    public async Task SendsNothingAfterTurningOff()
+    {
+        var (reporter, settings, handler, _) = Make();
+        reporter.Disable();
+        await reporter.SyncAsync(Bytes(500));
+        Assert.Empty(handler.Bodies);
         Assert.Null(settings.StatsInstallId);
     }
 
@@ -148,6 +160,6 @@ public sealed class StatsReporterTests
         Assert.True(loaded.ShareStatsAsked);
         Assert.Equal("abc", loaded.StatsInstallId);
         Assert.Equal(7, loaded.StatsLastSentBytes);
-        Assert.False(new DusterSettings().ShareStats);
+        Assert.True(new DusterSettings().ShareStats);
     }
 }

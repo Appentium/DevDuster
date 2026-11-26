@@ -208,7 +208,7 @@ import Testing
             switch event {
             case .item(let item): streamed.append(item)
             case .finished(let finished): report = finished
-            case .progress: continue
+            case .progress, .fraction: continue
             }
         }
         #expect(streamed.map(\.url) == report?.items.map(\.url))

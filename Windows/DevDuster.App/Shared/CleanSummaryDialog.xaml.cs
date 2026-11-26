@@ -15,8 +15,13 @@ public sealed partial class CleanSummaryDialog : ContentDialog
         Headline = $"{verb}: {ByteText.Format(freed)} ({succeeded} item(s))";
         ShowRecycleNote = mode == CleanMode.Recycle && succeeded > 0;
         FailuresHeader = $"Failures ({Failures.Count})";
-        ShowSharePrompt = succeeded > 0 && !App.Current.Services.Settings.ShareStatsAsked;
+        var services = App.Current.Services;
+        ShowSharePrompt = succeeded > 0 && services.Settings.ShareStats && !services.Settings.ShareStatsAsked;
         InitializeComponent();
+        if (!ShowSharePrompt) return;
+        services.Settings.ShareStatsAsked = true;
+        services.SettingsStore.Save(services.Settings);
+        services.SyncStats();
     }
 
     public string Headline { get; }
@@ -25,19 +30,16 @@ public sealed partial class CleanSummaryDialog : ContentDialog
     public IReadOnlyList<CleanResult> Failures { get; }
     public bool ShowSharePrompt { get; }
 
-    private void OnShareClicked(object sender, RoutedEventArgs e)
+    private void OnTurnOffShareClicked(object sender, RoutedEventArgs e)
     {
         var services = App.Current.Services;
-        services.Stats.Enable();
+        services.Stats.Disable();
         services.SyncStats();
         SharePrompt.Visibility = Visibility.Collapsed;
     }
 
-    private void OnDeclineShareClicked(object sender, RoutedEventArgs e)
+    private void OnDismissShareNoticeClicked(object sender, RoutedEventArgs e)
     {
-        var services = App.Current.Services;
-        services.Settings.ShareStatsAsked = true;
-        services.SettingsStore.Save(services.Settings);
         SharePrompt.Visibility = Visibility.Collapsed;
     }
 }

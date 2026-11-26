@@ -64,15 +64,15 @@
             Padding="12"
             Visibility="{x:Bind shared:Ui.Visible(ShowSharePrompt)}">
             <StackPanel Spacing="8">
-                <TextBlock Text="Add your total to the DevDuster world counter?" FontWeight="SemiBold" TextWrapping="Wrap" />
+                <TextBlock Text="Your total counts toward the DevDuster world counter" FontWeight="SemiBold" TextWrapping="Wrap" />
                 <TextBlock
-                    Text="Shares only a random ID, the platform, the app version and the total space freed. No paths or file names. You can turn it off in Settings."
+                    Text="DevDuster shares only a random ID, the platform, the app version and the total space freed. No paths or file names. Turning it off deletes your entry; the switch is also in Settings."
                     Style="{ThemeResource CaptionTextBlockStyle}"
                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                     TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Button Content="Share anonymously" Click="OnShareClicked" />
-                    <Button Content="No thanks" Click="OnDeclineShareClicked" />
+                    <Button Content="OK" Click="OnDismissShareNoticeClicked" />
+                    <Button Content="Turn off" Click="OnTurnOffShareClicked" />
                     <HyperlinkButton Content="What is sent" NavigateUri="https://devduster.com/privacy.html#stats" />
                 </StackPanel>
             </StackPanel>

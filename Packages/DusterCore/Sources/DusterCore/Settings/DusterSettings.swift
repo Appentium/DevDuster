@@ -59,7 +59,7 @@ public struct DusterSettings: Sendable {
             Key.scheduleWeekday: CleanSchedule.standard.weekday,
             Key.scheduleHour: CleanSchedule.standard.hour,
             Key.scheduledCleanMovesToTrash: true,
-            Key.shareStats: false,
+            Key.shareStats: true,
             Key.shareStatsAsked: false,
         ])
         self.defaults = defaults
@@ -120,7 +120,7 @@ public struct DusterSettings: Sendable {
         nonmutating set { defaults.set(newValue, forKey: Key.scheduledCleanMovesToTrash) }
     }
 
-    // Opt-in anonymous totals for the devduster.com counter; off until the user turns it on.
+    // Anonymous totals for the devduster.com counter; on by default, with a one-time notice after the first clean.
     public var shareStats: Bool {
         get { defaults.bool(forKey: Key.shareStats) }
         nonmutating set { defaults.set(newValue, forKey: Key.shareStats) }

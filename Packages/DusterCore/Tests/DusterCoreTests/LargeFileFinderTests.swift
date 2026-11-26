@@ -45,7 +45,7 @@ import Testing
             switch event {
             case .file(let item): streamed.append(item)
             case .finished(let items): finished = items
-            case .progress: break
+            case .progress, .fraction: break
             }
         }
 

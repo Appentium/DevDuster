@@ -1,6 +1,6 @@
 import Foundation
 
-// Sends the opt-in anonymous totals behind the devduster.com counter and world map:
+// Sends the anonymous totals behind the devduster.com counter and world map:
 // a random install id, the platform, the app version and the lifetime bytes freed. Nothing else.
 public actor StatsReporter {
     public typealias Transport = @Sendable (URLRequest) async throws -> Int
@@ -58,7 +58,8 @@ public actor StatsReporter {
             guard await post(RemoveBody(id: removal, remove: true)) else { return }
             settings.statsPendingRemovalID = nil
         }
-        guard settings.shareStats else { return }
+        // On by default, but nothing is sent before the one-time notice has been shown.
+        guard settings.shareStats, settings.shareStatsAsked else { return }
         let bytes = max(await lifetimeBytes(), 0)
         if settings.statsInstallID != nil, settings.statsLastSentBytes == bytes { return }
         let id = settings.statsInstallID ?? UUID().uuidString.lowercased()

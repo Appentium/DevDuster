@@ -1,7 +1,7 @@
 import DusterCore
 import Foundation
 
-// The opt-in anonymous totals behind the devduster.com counter. Every call is a no-op while sharing is off,
+// The anonymous totals behind the devduster.com counter. Every call is a no-op while sharing is off,
 // apart from deleting the server entry once after the user turns it off.
 enum StatsSharing {
     static let privacyURL = URL(string: "https://devduster.com/privacy.html#stats")!
@@ -33,7 +33,8 @@ enum StatsSharing {
         }
     }
 
-    static func decline() {
+    static func noticeShown() {
         DusterSettings().shareStatsAsked = true
+        sync()
     }
 }

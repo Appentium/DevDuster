@@ -41,7 +41,7 @@ struct CleanResultSummaryView: View {
             }
 
             if summary.cleanedCount > 0 {
-                ShareStatsPrompt()
+                ShareStatsNotice()
             }
 
             if !summary.issues.isEmpty {
@@ -67,27 +67,26 @@ struct CleanResultSummaryView: View {
     }
 }
 
-// Asked once, after the first clean that removed something; Settings has the same switch.
-private struct ShareStatsPrompt: View {
-    @State private var isVisible = !DusterSettings().shareStatsAsked
+// Shown once, after the first clean that removed something, so on-by-default sharing is never silent.
+private struct ShareStatsNotice: View {
+    @State private var isVisible = DusterSettings().shareStats && !DusterSettings().shareStatsAsked
 
     var body: some View {
         if isVisible {
             VStack(alignment: .leading, spacing: 8) {
-                Text("Add your total to the DevDuster world counter?")
+                Text("Your total counts toward the DevDuster world counter")
                     .font(.subheadline.weight(.semibold))
-                Text("Shares only a random ID, the platform, the app version and the total space freed. No paths or file names. You can turn it off in Settings.")
+                Text("DevDuster shares only a random ID, the platform, the app version and the total space freed. No paths or file names. Turning it off deletes your entry; the switch is also in Settings.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 8) {
-                    Button("Share Anonymously") {
-                        StatsSharing.setSharing(true)
+                    Button("OK") {
                         isVisible = false
                     }
                     .buttonStyle(.borderedProminent)
-                    Button("No Thanks") {
-                        StatsSharing.decline()
+                    Button("Turn Off") {
+                        StatsSharing.setSharing(false)
                         isVisible = false
                     }
                     .buttonStyle(.bordered)
@@ -98,6 +97,7 @@ private struct ShareStatsPrompt: View {
             .padding(10)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+            .onAppear { StatsSharing.noticeShown() }
         }
     }
 }

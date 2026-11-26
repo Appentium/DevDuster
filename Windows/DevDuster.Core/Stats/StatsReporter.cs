@@ -4,7 +4,7 @@ using DevDuster.Core.Settings;
 
 namespace DevDuster.Core.Stats;
 
-// Sends the opt-in anonymous totals behind the devduster.com counter and world map:
+// Sends the anonymous totals behind the devduster.com counter and world map:
 // a random install id, the platform, the app version and the lifetime bytes freed. Nothing else.
 public sealed class StatsReporter(DusterSettings settings, Action<DusterSettings> save, HttpClient http, string version)
 {
@@ -44,7 +44,8 @@ public sealed class StatsReporter(DusterSettings settings, Action<DusterSettings
                 settings.StatsPendingRemovalId = null;
                 save(settings);
             }
-            if (!settings.ShareStats) return;
+            // On by default, but nothing is sent before the one-time notice has been shown.
+            if (!settings.ShareStats || !settings.ShareStatsAsked) return;
             var bytes = Math.Max(await lifetimeBytes(), 0);
             if (settings.StatsInstallId is not null && settings.StatsLastSentBytes == bytes) return;
             var id = settings.StatsInstallId ??= Guid.NewGuid().ToString("D");

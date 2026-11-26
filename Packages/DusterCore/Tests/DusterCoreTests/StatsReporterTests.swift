@@ -42,11 +42,21 @@ private actor FakeServer {
         return (StatsReporter(settings: settings, version: "1.2.3") { try await server.handle($0) }, settings)
     }
 
-    @Test func sendsNothingUntilEnabled() async {
+    @Test func sharesByDefaultOnlyAfterTheNotice() async {
         let (reporter, settings) = make()
+        #expect(settings.shareStats)
         await reporter.sync { 500 }
         #expect(await server.count() == 0)
-        #expect(!settings.shareStats)
+        settings.shareStatsAsked = true
+        await reporter.sync { 500 }
+        #expect(await server.count() == 1)
+    }
+
+    @Test func sendsNothingAfterTurningOff() async {
+        let (reporter, settings) = make()
+        await reporter.disable()
+        await reporter.sync { 500 }
+        #expect(await server.count() == 0)
         #expect(settings.statsInstallID == nil)
     }
 
