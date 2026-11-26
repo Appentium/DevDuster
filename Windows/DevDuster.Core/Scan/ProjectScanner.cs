@@ -10,22 +10,33 @@ public sealed record DevProject(string Path, DateTime LastActivityUtc, IReadOnly
 
 public sealed class ProjectScanner(RuleCatalog catalog, DriveService drives, IFileMeasure measure)
 {
-    public Task<IReadOnlyList<DevProject>> ScanAsync(ScanOptions options, Action<string> progress, CancellationToken cancellation) =>
+    public Task<IReadOnlyList<DevProject>> ScanAsync(ScanOptions options, IProgress<ScanUpdate<DevProject>>? progress, CancellationToken cancellation) =>
         Task.Run<IReadOnlyList<DevProject>>(() =>
         {
-            var walk = DusterScanner.WalkProjects(catalog, drives, options, progress, cancellation);
+            var walker = DusterScanner.MakeWalker(catalog, options);
+            var roots = DusterScanner.ProjectRoots(catalog, drives, options);
+            var plan = walker.Plan(roots);
+            var counter = new UnitCounter(plan.Count);
             var sizes = new SizeCalculator(measure);
-            // An artifact with no known project has no activity to judge it by, so it is left out as the cleaner does.
-            var owned = walk.Artifacts.Select(artifact => (Artifact: artifact, Owner: walk.OwnerOf(artifact))).Where(entry => entry.Owner is not null);
             var projects = new List<DevProject>();
-            foreach (var group in owned.GroupBy(entry => entry.Owner!, PathTools.Comparer).OrderBy(group => group.Key, PathTools.Comparer))
+            var gate = new Lock();
+            // A project is never split across planned folders, so each folder's projects are complete when it finishes.
+            walker.Walk(roots, plan, path => progress?.Report(new ScanUpdate<DevProject>(path, counter.Fraction)), cancellation, (start, folder) =>
             {
-                cancellation.ThrowIfCancellationRequested();
-                var folders = group.Select(entry => entry.Artifact).OrderBy(artifact => artifact.Path, PathTools.Comparer)
-                    .Select(artifact => new ScanItem(artifact.Rule, artifact.Path, sizes.AllocatedSize(artifact.Path, cancellation))).ToList();
-                projects.Add(new DevProject(group.Key, walk.Activity[group.Key], folders));
-            }
+                // An artifact with no known project has no activity to judge it by, so it is left out as the cleaner does.
+                var owned = folder.Artifacts.Select(artifact => (Artifact: artifact, Owner: folder.OwnerOf(artifact))).Where(entry => entry.Owner is not null);
+                foreach (var group in owned.GroupBy(entry => entry.Owner!, PathTools.Comparer))
+                {
+                    if (cancellation.IsCancellationRequested) return;
+                    var folders = group.Select(entry => entry.Artifact).OrderBy(artifact => artifact.Path, PathTools.Comparer)
+                        .Select(artifact => new ScanItem(artifact.Rule, artifact.Path, sizes.AllocatedSize(artifact.Path, cancellation))).ToList();
+                    var project = new DevProject(group.Key, folder.Activity[group.Key], folders);
+                    lock (gate) projects.Add(project);
+                    progress?.Report(new ScanUpdate<DevProject>(group.Key, counter.Fraction, project));
+                }
+                progress?.Report(new ScanUpdate<DevProject>(start, counter.Finish()));
+            });
             cancellation.ThrowIfCancellationRequested();
-            return projects;
+            return [.. projects.OrderBy(project => project.Path, PathTools.Comparer)];
         }, cancellation);
 }

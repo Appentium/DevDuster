@@ -67,6 +67,8 @@ public enum ScanPhase: Sendable {
 
 public enum ScanEvent: Sendable {
     case progress(ScanPhase, path: String)
+    /// Share of scan units finished, from 0 to 1. Parallel work can deliver these slightly out of order.
+    case fraction(Double)
     case item(ScanItem)
     case finished(ScanReport)
 }

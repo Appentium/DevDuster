@@ -8,6 +8,18 @@ struct ProjectsView: View {
         VStack(spacing: 0) {
             controlsBar
             Divider()
+            if model.isScanning {
+                ScanProgressBanner(
+                    phase: .projects,
+                    currentPath: model.currentPath,
+                    fraction: model.fraction,
+                    foundCount: model.projects.count,
+                    foundBytes: model.allFolderItems.reduce(0) { $0 + $1.bytes },
+                    foundNoun: "projects",
+                    onCancel: model.cancelScan
+                )
+                Divider()
+            }
             content
             Divider()
             CleanFooterBar(
@@ -49,6 +61,10 @@ struct ProjectsView: View {
 
     private var controlsBar: some View {
         HStack(spacing: 10) {
+            LocationPicker(location: model.location, onChange: { model.startScan() })
+                .disabled(model.isScanning)
+            Divider()
+                .frame(height: 18)
             Button("Select All", action: model.selectAll)
                 .disabled(model.allFolderItems.isEmpty || model.isScanning)
             Button("Select Stale", action: model.selectStale)
@@ -73,7 +89,7 @@ struct ProjectsView: View {
 
     @ViewBuilder
     private var content: some View {
-        if model.isScanning {
+        if model.isScanning && model.projects.isEmpty {
             ProgressView("Scanning projects...")
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.projects.isEmpty && model.cleanSession.summary == nil {

@@ -55,6 +55,9 @@ public sealed class DusterSettings
     public bool TrayEnabled { get; set; } = true;
     public AppThemeChoice Theme { get; set; } = AppThemeChoice.System;
 
+    // Per tool, the folder its scans start from; "*" means everywhere. A tool missing here starts everywhere.
+    public Dictionary<string, string> RememberedLocations { get; set; } = [];
+
     public ScanOptions ToScanOptions(IReadOnlySet<Tier>? tiers = null, IReadOnlyList<string>? scope = null) => new()
     {
         StaleDays = StaleDays,

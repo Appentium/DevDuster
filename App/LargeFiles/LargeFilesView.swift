@@ -52,7 +52,6 @@ struct LargeFilesView: View {
         .onAppear { model.scanIfNeeded() }
         .onChange(of: model.minSize) { model.startScan() }
         .onChange(of: model.ageFilter) { model.startScan() }
-        .onChange(of: model.volumeFilter) { model.startScan() }
         .cleanFlowModals(
             session: model.cleanSession,
             selectedCount: model.pendingDeletion.count,
@@ -77,12 +76,8 @@ struct LargeFilesView: View {
             }
             .frame(maxWidth: 175)
 
-            Picker("Volume", selection: $model.volumeFilter) {
-                ForEach(model.availableVolumeFilters) { option in
-                    Text(option.label).tag(option)
-                }
-            }
-            .frame(maxWidth: 190)
+            LocationPicker(location: model.location, onChange: { model.startScan() })
+                .disabled(model.scanning)
 
             SelectAllButtons(
                 canSelectAll: model.selection.count < model.files.count,
@@ -94,8 +89,15 @@ struct LargeFilesView: View {
             Spacer()
 
             if model.scanning {
-                ProgressView()
-                    .controlSize(.small)
+                if let fraction = model.fraction {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
+                        .accessibilityLabel("Scan progress")
+                } else {
+                    ProgressView()
+                        .controlSize(.small)
+                }
                 Text("Scanned \(model.filesScanned.formatted()) • Found \(model.files.count)")
                     .font(.caption)
                     .foregroundStyle(.secondary)

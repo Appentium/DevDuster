@@ -8,17 +8,22 @@ public sealed class DusterScanner(RuleCatalog catalog, DriveService drives, IFil
     public Task<ScanReport> RunAsync(ScanOptions options, IProgress<ScanProgress>? progress, CancellationToken cancellation) =>
         Task.Run(() => Run(options, progress, cancellation), cancellation);
 
-    internal static ProjectWalk WalkProjects(
-        RuleCatalog catalog, DriveService drives, ScanOptions options, Action<string> progress, CancellationToken cancellation)
+    internal static ProjectWalker MakeWalker(RuleCatalog catalog, ScanOptions options) =>
+        new(new ProjectArtifactMatcher(catalog), WalkBlocked(catalog, options));
+
+    // Where the project walk starts. A root inside app data, a system folder or OneDrive is dropped even when the user
+    // picked it: build-like folders there belong to installed tools and package caches, not to projects.
+    internal static IReadOnlyList<string> ProjectRoots(RuleCatalog catalog, DriveService drives, ScanOptions options)
+    {
+        var blocked = WalkBlocked(catalog, options);
+        return [.. ProjectWalker.SearchRoots(catalog.Folders, drives, options.Scope).Where(root => !blocked.Any(other => PathTools.IsSameOrInside(root, other)))];
+    }
+
+    private static IReadOnlyList<string> WalkBlocked(RuleCatalog catalog, ScanOptions options)
     {
         var folders = catalog.Folders;
         string[] blocked = [.. options.ExcludedPaths, folders.AppData, .. folders.CloudFolders, .. folders.SystemFolders];
-        var excluded = blocked.Select(PathTools.Real).OfType<string>().ToList();
-        var walker = new ProjectWalker(new ProjectArtifactMatcher(catalog), excluded);
-        var walk = walker.Walk(ProjectWalker.SearchRoots(folders, drives, options.Scope), progress, cancellation);
-        // A cut-short walk has incomplete activity, which could make an active project look stale.
-        cancellation.ThrowIfCancellationRequested();
-        return walk;
+        return [.. blocked.Select(PathTools.Real).OfType<string>()];
     }
 
     private ScanReport Run(ScanOptions options, IProgress<ScanProgress>? progress, CancellationToken cancellation)
@@ -30,42 +35,80 @@ public sealed class DusterScanner(RuleCatalog catalog, DriveService drives, IFil
         var (offered, claimed) = FolderCandidates([.. excluded, .. Existing(catalog.Folders.DusterData)]);
         var running = processes.RunningNames();
         var rules = catalog.Rules.Where(rule => options.Tiers.Contains(rule.Tier)).ToList();
-        var candidates = offered.Where(item =>
+        var folderCandidates = offered.Where(item =>
             options.Tiers.Contains(item.Rule.Tier)
             && !item.Rule.ProcessGuard.Any(running.Contains)
-            && IsOldEnough(item, cancellation)
             && (scope is null || scope.Any(root => PathTools.IsSameOrInside(item.Path, root)))).ToList();
 
-        if (rules.Any(rule => rule.Target is ProjectTarget))
-        {
-            var walk = WalkProjects(catalog, drives, options, path => progress?.Report(new ScanProgress(ScanPhase.Projects, path)), cancellation);
-            candidates.AddRange(walk.Artifacts
-                .Where(artifact => options.Tiers.Contains(artifact.Rule.Tier) && walk.OwnerOf(artifact) is { } owner && options.IsStale(walk.Activity[owner]))
-                .SelectMany(artifact => Claim(artifact.Path, claimed).Select(path => new ScanItem(artifact.Rule, path, 0))));
-        }
+        var walksProjects = options.WalksProjects && rules.Any(rule => rule.Target is ProjectTarget);
+        var folders = catalog.Folders;
+        var walker = MakeWalker(catalog, options);
+        var roots = walksProjects ? ProjectRoots(catalog, drives, options) : [];
+        var plan = walker.Plan(roots);
 
-        var guard = new RunningAppGuard(catalog.Folders, running);
+        // One unit per cache folder and one per planned project folder; neither is known in bytes up front.
+        var total = folderCandidates.Count + plan.Count;
+        var done = 0;
+        double? Fraction() => total == 0 ? null : Math.Min(1, (double)Volatile.Read(ref done) / total);
+        void Report(ScanPhase phase, string path, ScanItem? found = null) => progress?.Report(new ScanProgress(phase, path, found, Fraction()));
+
+        var guard = new RunningAppGuard(folders, running);
         var sizes = new SizeCalculator(measure);
+        var gate = new Lock();
+        var seen = new HashSet<string>(PathTools.Comparer);
         var items = new List<ScanItem>();
         var skippedItems = new List<SkippedItem>();
-        foreach (var candidate in candidates.DistinctBy(item => item.Path, PathTools.Comparer))
+
+        // Called from several walker threads, so each item is shown the moment it is measured.
+        void Measure(ScanItem candidate)
         {
-            cancellation.ThrowIfCancellationRequested();
-            progress?.Report(new ScanProgress(ScanPhase.Measuring, candidate.Path));
-            var item = candidate with { Bytes = sizes.AllocatedSize(candidate.Path, cancellation) };
-            if (item.Bytes == 0) continue;
-            if (guard.OwnerOf(item) is { } owner)
+            lock (gate)
             {
-                skippedItems.Add(new SkippedItem(item, owner));
-                continue;
+                if (!seen.Add(candidate.Path)) return;
             }
-            items.Add(item);
-            progress?.Report(new ScanProgress(ScanPhase.Measuring, item.Path, item));
+            Report(ScanPhase.Measuring, candidate.Path);
+            var item = candidate with { Bytes = sizes.AllocatedSize(candidate.Path, cancellation) };
+            if (item.Bytes == 0 || cancellation.IsCancellationRequested) return;
+            var owner = guard.OwnerOf(item);
+            lock (gate)
+            {
+                if (owner is null) items.Add(item);
+                else skippedItems.Add(new SkippedItem(item, owner));
+            }
+            if (owner is null) Report(ScanPhase.Measuring, item.Path, item);
         }
 
-        if (scope is null && rules.FirstOrDefault(rule => rule.Target is DockerPruneTarget) is { } dockerRule && docker.ReclaimableBytes() is { } reclaimable && reclaimable > 0)
+        foreach (var candidate in folderCandidates)
         {
-            items.Add(new ScanItem(dockerRule, docker.DataPath, reclaimable));
+            cancellation.ThrowIfCancellationRequested();
+            if (IsOldEnough(candidate, cancellation)) Measure(candidate);
+            Interlocked.Increment(ref done);
+            Report(ScanPhase.Rules, candidate.Path);
+        }
+
+        if (walksProjects)
+        {
+            walker.Walk(roots, plan, path => Report(ScanPhase.Projects, path), cancellation, (start, folder) =>
+            {
+                foreach (var artifact in folder.Artifacts)
+                {
+                    if (cancellation.IsCancellationRequested) return;
+                    if (!options.Tiers.Contains(artifact.Rule.Tier) || folder.OwnerOf(artifact) is not { } owner || !options.IsStale(folder.Activity[owner])) continue;
+                    foreach (var path in Claim(artifact.Path, claimed)) Measure(new ScanItem(artifact.Rule, path, 0));
+                }
+                Interlocked.Increment(ref done);
+                Report(ScanPhase.Projects, start);
+            });
+        }
+        cancellation.ThrowIfCancellationRequested();
+
+        // Docker is asked only when the scan covers its data folder, as for a folder rule.
+        var coversDocker = scope is null || scope.Any(root => PathTools.IsSameOrInside(docker.DataPath, root));
+        if (coversDocker && rules.FirstOrDefault(rule => rule.Target is DockerPruneTarget) is { } dockerRule && docker.ReclaimableBytes() is { } reclaimable && reclaimable > 0)
+        {
+            var dockerItem = new ScanItem(dockerRule, docker.DataPath, reclaimable);
+            items.Add(dockerItem);
+            Report(ScanPhase.Measuring, dockerItem.Path, dockerItem);
         }
 
         cancellation.ThrowIfCancellationRequested();

@@ -18,4 +18,22 @@ public sealed record ScanReport(IReadOnlyList<ScanItem> Items, IReadOnlyList<Ski
 
 public enum ScanPhase { Rules, Projects, Measuring }
 
-public sealed record ScanProgress(ScanPhase Phase, string Path, ScanItem? Found = null);
+// Fraction is the share of scan units finished, or null before any are known.
+public sealed record ScanProgress(ScanPhase Phase, string Path, ScanItem? Found = null, double? Fraction = null);
+
+// A live update from a scan: where it is, the share of work finished (null until known), and anything it just found.
+public sealed record ScanUpdate<T>(string Path, double? Fraction, T? Found = null) where T : class;
+
+// Counts finished units of work from any thread and turns them into a fraction.
+public sealed class UnitCounter(int total)
+{
+    private int _done;
+
+    public double? Fraction => total == 0 ? null : Math.Min(1, (double)Volatile.Read(ref _done) / total);
+
+    public double? Finish()
+    {
+        Interlocked.Increment(ref _done);
+        return Fraction;
+    }
+}

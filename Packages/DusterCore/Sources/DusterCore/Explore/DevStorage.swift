@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public struct DevTool: Sendable, Hashable, Identifiable {
     public struct Essential: Sendable, Hashable {
@@ -72,10 +73,19 @@ public struct DevStorageAnalyzer: Sendable {
         tools.compactMap(root)
     }
 
-    public func run(items: [ScanItem]) async -> [DevToolUsage] {
+    /// onTool gets each measured tool that holds data, with the share of tools measured so far, from several tasks at once.
+    public func run(items: [ScanItem], onTool: (@Sendable (DevToolUsage?, Double) -> Void)? = nil) async -> [DevToolUsage] {
         let found = tools.compactMap { tool in root(of: tool).map { (tool, $0) } }
+        let total = Double(max(1, found.count))
+        let done = OSAllocatedUnfairLock(initialState: 0)
         let usages = await found.concurrentMap(limit: 4) { tool, root in
-            usage(of: tool, root: root, items: items)
+            let measured = self.usage(of: tool, root: root, items: items)
+            let count = done.withLock { count in
+                count += 1
+                return count
+            }
+            onTool?(measured.totalBytes > 0 ? measured : nil, Double(count) / total)
+            return measured
         }
         return usages.filter { $0.totalBytes > 0 }.sorted { $0.totalBytes > $1.totalBytes }
     }

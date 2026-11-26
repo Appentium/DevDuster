@@ -6,7 +6,7 @@ namespace DevDuster.Core.Tests;
 public sealed class ProjectScannerTests
 {
     private static IReadOnlyList<DevProject> Scan(Fixture fixture, ScanOptions options) =>
-        fixture.MakeProjectScanner().ScanAsync(options, _ => { }, CancellationToken.None).GetAwaiter().GetResult();
+        fixture.MakeProjectScanner().ScanAsync(options, null, CancellationToken.None).GetAwaiter().GetResult();
 
     private static ScanOptions Options(Fixture fixture, string? excluded = null) => new()
     {

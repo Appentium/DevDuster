@@ -12,7 +12,8 @@ public sealed class LeftoverFinder(UserFolders folders, IFileMeasure measure, IP
     private static readonly string[] AppDataMarkers = ["Local State", "Local Storage", "GPUCache", "Code Cache", "Update.exe", "unins000.exe", "uninstall.exe"];
 
     public IReadOnlyList<Leftover> Find(
-        IReadOnlyList<InstalledProgram> installed, IReadOnlyList<InstalledProgram> removed, CancellationToken cancellation = default)
+        IReadOnlyList<InstalledProgram> installed, IReadOnlyList<InstalledProgram> removed, CancellationToken cancellation = default,
+        IProgress<ScanUpdate<Leftover>>? progress = null)
     {
         // An empty inventory means the registry read failed, not that nothing is installed.
         if (installed.Count == 0) return [];
@@ -20,9 +21,12 @@ public sealed class LeftoverFinder(UserFolders folders, IFileMeasure measure, IP
         var pathEntries = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries);
         var sizes = new SizeCalculator(measure);
         var found = new List<Leftover>();
-        foreach (var folder in Candidates())
+        var candidates = Candidates().ToList();
+        var counter = new UnitCounter(candidates.Count);
+        foreach (var folder in candidates)
         {
             cancellation.ThrowIfCancellationRequested();
+            progress?.Report(new ScanUpdate<Leftover>(folder, counter.Finish()));
             var name = Path.GetFileName(folder);
             if (!LeftoverShape.Matches(folders, folder) || IsClaimed(folder, installed)) continue;
             if (pathEntries.Any(entry => PathTools.IsSameOrInside(entry.TrimEnd(Path.DirectorySeparatorChar), folder))) continue;
@@ -36,7 +40,9 @@ public sealed class LeftoverFinder(UserFolders folders, IFileMeasure measure, IP
             var reason = former is null
                 ? $"No installed program matches “{name}”, unchanged for {QuietDays}+ days."
                 : $"Left by {former.Name}.";
-            found.Add(new Leftover(new ScanItem(RuleCatalog.Leftover, folder, sizes.AllocatedSize(folder, cancellation)), reason));
+            var leftover = new Leftover(new ScanItem(RuleCatalog.Leftover, folder, sizes.AllocatedSize(folder, cancellation)), reason);
+            found.Add(leftover);
+            progress?.Report(new ScanUpdate<Leftover>(folder, counter.Fraction, leftover));
         }
         return [.. found.OrderByDescending(leftover => leftover.Item.Bytes)];
     }

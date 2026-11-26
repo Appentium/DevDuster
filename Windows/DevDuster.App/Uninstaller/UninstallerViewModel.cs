@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using DevDuster.App.Shared;
+using DevDuster.Core.Scan;
 using DevDuster.Core.Uninstall;
 using Microsoft.UI.Xaml;
 
@@ -64,6 +65,7 @@ public sealed partial class UninstallerViewModel : ObservableObject
     public partial long SelectedBytes { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsCleaning { get; set; }
 
     [ObservableProperty]
@@ -71,6 +73,15 @@ public sealed partial class UninstallerViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool IsLoading { get; set; }
+
+    // The leftover search runs after the program list is shown, with its own progress strip.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
+    public partial bool IsSearchingLeftovers { get; set; }
+
+    public bool IsBusy => IsSearchingLeftovers || IsCleaning;
+
+    public ScanStatus Status { get; } = new();
 
     [ObservableProperty]
     public partial string SearchText { get; set; }
@@ -174,10 +185,33 @@ public sealed partial class UninstallerViewModel : ObservableObject
         // A program counts as removed only once its registry entry is gone.
         var removed = _uninstallStarted.Where(program => listed.All(other => other.Id != program.Id)).ToList();
         var finder = new LeftoverFinder(_services.Folders, _services.Measure, _services.Processes);
-        var found = await Task.Run(() => finder.Find(_services.InstalledPrograms.ReadForLeftovers(), removed));
-        Leftovers = [.. found.Select(leftover => new LeftoverRowViewModel(leftover, UpdateSelection))];
-        HasNoLeftovers = Leftovers.Count == 0;
-        UpdateSelection();
+        var rows = new List<LeftoverRowViewModel>();
+        Leftovers = [];
+        HasNoLeftovers = false;
+        IsSearchingLeftovers = true;
+        Status.Reset("Looking for leftover folders...");
+        var feed = new LiveFeed<Leftover>((found, latest) =>
+        {
+            rows.AddRange(found.Select(leftover => new LeftoverRowViewModel(leftover, UpdateSelection)));
+            Status.Update(latest?.Path, latest?.Fraction);
+            Status.SetFound(rows.Count, rows.Sum(row => row.Item.Bytes), "folder(s)");
+            if (found.Count > 0) Leftovers = [.. rows.OrderByDescending(row => row.Item.Bytes)];
+        });
+        try
+        {
+            var found = await Task.Run(() => finder.Find(_services.InstalledPrograms.ReadForLeftovers(), removed, progress: feed));
+            feed.Stop();
+            // The finished list is the final word; choices made while searching carry over.
+            var chosen = rows.Where(row => row.IsSelected).Select(row => row.Item.Path).ToHashSet(PathTools.Comparer);
+            Leftovers = [.. found.Select(leftover => new LeftoverRowViewModel(leftover, UpdateSelection) { IsSelected = chosen.Contains(leftover.Item.Path) })];
+        }
+        finally
+        {
+            feed.Stop();
+            IsSearchingLeftovers = false;
+            HasNoLeftovers = Leftovers.Count == 0;
+            UpdateSelection();
+        }
     }
 
     private void UpdateSelection()

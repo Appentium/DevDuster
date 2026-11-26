@@ -52,13 +52,16 @@ public sealed partial class LargeFilesViewModel : ObservableObject
     private readonly AppServices _services;
     private readonly List<LargeFileRowViewModel> _rawFiles = [];
     private CancellationTokenSource? _scanCts;
+    private LiveFeed<LargeFile>? _feed;
+    private DateTime _lastSort;
     private bool _initialized;
 
     public LargeFilesViewModel(AppServices services)
     {
         _services = services;
+        Location = new ScanLocation(services, "largeFiles");
+        Location.Changed += () => _ = StartScanAsync();
         Files = [];
-        ProgressText = "";
         StatusText = "Scan drives for large files.";
         ScanButtonLabel = "Scan";
         SelectedMinSizeIndex = 1;
@@ -66,17 +69,22 @@ public sealed partial class LargeFilesViewModel : ObservableObject
         _initialized = true;
     }
 
+    public ScanLocation Location { get; }
+    public ScanStatus Status { get; } = new();
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
     public partial bool HasScanned { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsCleaning { get; set; }
 
-    [ObservableProperty]
-    public partial string ProgressText { get; set; }
+    // Files listed while scanning can be picked, but cleaning waits for the scan to finish.
+    public bool IsBusy => IsScanning || IsCleaning;
 
     [ObservableProperty]
     public partial string StatusText { get; set; }
@@ -142,10 +150,8 @@ public sealed partial class LargeFilesViewModel : ObservableObject
         _rawFiles.Clear();
         Files = [];
         UpdateCounts();
-        ProgressText = "Scanning for large files...";
+        Status.Reset("Scanning for large files...");
         StatusText = "Scanning...";
-
-        var progress = new ThrottledProgress<string>(path => ProgressText = path);
         var minBytes = MinSizeValues[Math.Clamp(SelectedMinSizeIndex, 0, MinSizeValues.Length - 1)];
         var minAge = AgeValues[Math.Clamp(SelectedAgeIndex, 0, AgeValues.Length - 1)];
         var options = new LargeFileOptions
@@ -153,16 +159,24 @@ public sealed partial class LargeFilesViewModel : ObservableObject
             MinBytes = minBytes,
             MinAgeDays = minAge,
             ExcludedPaths = _services.Settings.ExcludedPaths,
+            Roots = Location.Scope,
         };
+        _lastSort = DateTime.UtcNow;
+        _feed = new LiveFeed<LargeFile>(ApplyFeed);
 
         try
         {
-            var found = await Task.Run(() => _services.LargeFileFinder.RunAsync(options, progress, ct), ct);
+            var found = await _services.LargeFileFinder.RunAsync(options, _feed, ct);
             if (ct.IsCancellationRequested) return;
+            StopFeed();
+            // The finished list is the final word; choices made while scanning carry over.
+            var chosen = _rawFiles.ToDictionary(f => f.FullPath, f => f.IsSelected, PathTools.Comparer);
+            _rawFiles.Clear();
             foreach (var file in found)
             {
-                _rawFiles.Add(new LargeFileRowViewModel(file, UpdateCounts));
+                _rawFiles.Add(new LargeFileRowViewModel(file, UpdateCounts) { IsSelected = chosen.GetValueOrDefault(file.Path) });
             }
+            IsScanning = false;
             HasScanned = true;
             ScanButtonLabel = "Rescan";
             ApplySort();
@@ -174,14 +188,37 @@ public sealed partial class LargeFilesViewModel : ObservableObject
         }
         finally
         {
+            StopFeed();
             IsScanning = false;
-            ProgressText = "";
+            UpdateCounts();
+        }
+    }
+
+    private void StopFeed()
+    {
+        // Cleared first, so the last batch re-sorts the list straight away.
+        var feed = _feed;
+        _feed = null;
+        feed?.Stop();
+    }
+
+    private void ApplyFeed(IReadOnlyList<LargeFile> found, ScanUpdate<LargeFile>? latest)
+    {
+        foreach (var file in found) _rawFiles.Add(new LargeFileRowViewModel(file, UpdateCounts));
+        Status.Update(latest?.Path, latest?.Fraction);
+        Status.SetFound(_rawFiles.Count, _rawFiles.Sum(f => f.Bytes), "file(s)");
+        if (found.Count == 0) return;
+        if (_feed is null || DateTime.UtcNow - _lastSort >= TimeSpan.FromSeconds(1))
+        {
+            _lastSort = DateTime.UtcNow;
+            ApplySort();
         }
     }
 
     [RelayCommand]
     public void CancelScan()
     {
+        StopFeed();
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;

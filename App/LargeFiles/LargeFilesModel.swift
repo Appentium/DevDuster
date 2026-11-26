@@ -43,35 +43,12 @@ import DusterCore
         }
     }
 
-    enum VolumeFilter: Hashable, Identifiable {
-        case all
-        case home
-        case volume(Volume)
-
-        var id: String {
-            switch self {
-            case .all: "all"
-            case .home: "home"
-            case .volume(let volume): "volume:\(volume.url.path)"
-            }
-        }
-
-        var label: String {
-            switch self {
-            case .all: "All Volumes"
-            case .home: "Home (~)"
-            case .volume(let volume): volume.name
-            }
-        }
-    }
-
     private let catalog = RuleCatalog()
     private let volumeService = VolumeService()
+    let location = ScanLocationModel(key: "largeFiles")
 
     var minSize: MinSizeFilter = .mb500
     var ageFilter: AgeFilter = .any
-    var volumeFilter: VolumeFilter = .all
-    var volumes: [Volume] = []
     var files: [LargeFile] = []
     var selection: Set<LargeFile.ID> = []
     var sortOrder: [KeyPathComparator<LargeFile>] = [KeyPathComparator(\.bytes, order: .reverse)]
@@ -79,18 +56,12 @@ import DusterCore
     var hasScanned = false
     var progressPath = ""
     var filesScanned = 0
+    /// From 0 to 1, or nil until the scan knows how much work there is.
+    var fraction: Double?
     var pendingDeletion: [LargeFile] = []
     var cleanSession = CleanSessionModel()
 
     private var scanTask: Task<Void, Never>?
-
-    init() {
-        volumes = volumeService.volumes().filter { !$0.isReadOnly }
-    }
-
-    var availableVolumeFilters: [VolumeFilter] {
-        [.all, .home] + volumes.map { .volume($0) }
-    }
 
     var sortedFiles: [LargeFile] {
         files.sorted(using: sortOrder)
@@ -124,22 +95,17 @@ import DusterCore
     func startScan() {
         scanTask?.cancel()
         cleanSession.dismissSummary()
-        volumes = volumeService.volumes().filter { !$0.isReadOnly }
+        location.reloadVolumes()
         files = []
         selection = []
         progressPath = ""
         filesScanned = 0
+        fraction = nil
         scanning = true
         hasScanned = true
 
-        let roots: [URL]?
-        switch volumeFilter {
-        case .all: roots = nil
-        case .home: roots = [catalog.home]
-        case .volume(let volume): roots = [volume.url]
-        }
 
-        let options = LargeFileOptions(minBytes: minSize.rawValue, minAgeDays: ageFilter.days, roots: roots)
+        let options = LargeFileOptions(minBytes: minSize.rawValue, minAgeDays: ageFilter.days, roots: location.scope)
         let finder = LargeFileFinder(home: catalog.home, volumes: volumeService)
 
         scanTask = Task {
@@ -148,6 +114,9 @@ import DusterCore
                 case .progress(let path, let count):
                     progressPath = path
                     filesScanned = count
+                case .fraction(let value):
+                    // Parallel work can report slightly out of order; the bar never moves back.
+                    fraction = max(fraction ?? 0, value)
                 case .file(let file):
                     files.append(file)
                 case .finished(let finalFiles):

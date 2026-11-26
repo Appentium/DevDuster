@@ -26,24 +26,9 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
 
-            <ComboBox
-                Header="Location"
-                MinWidth="180"
-                ItemsSource="{x:Bind ViewModel.Locations, Mode=OneWay}"
-                SelectedIndex="{x:Bind ViewModel.SelectedLocationIndex, Mode=TwoWay}"
-                IsEnabled="{x:Bind shared:Ui.Not(ViewModel.IsScanning), Mode=OneWay}">
-                <ComboBox.ItemTemplate>
-                    <DataTemplate x:DataType="dm:DiskLocationOption">
-                        <TextBlock Text="{x:Bind Label}" />
-                    </DataTemplate>
-                </ComboBox.ItemTemplate>
-            </ComboBox>
-
-            <Button
-                Grid.Column="1"
-                VerticalAlignment="Bottom"
-                Content="Choose Folder..."
-                Click="OnChooseFolderClicked"
+            <shared:LocationPicker
+                Grid.ColumnSpan="2"
+                Location="{x:Bind ViewModel.Location}"
                 IsEnabled="{x:Bind shared:Ui.Not(ViewModel.IsScanning), Mode=OneWay}" />
 
             <ComboBox

@@ -30,10 +30,24 @@ struct ProjectWalker: Sendable {
         }
     }
 
-    private struct Tree: Sendable {
+    fileprivate struct Tree: Sendable {
         var artifacts: [Artifact] = []
         var projects: [String: time_t] = [:]
         var newest = time_t.min
+    }
+
+    fileprivate struct Top: Sendable {
+        let root: URL
+        var tree = Tree()
+        var hasMarker = false
+        var subtrees: [URL] = []
+    }
+
+    /// Folders to walk one by one, which are also the units of scan progress.
+    struct Plan: Sendable {
+        fileprivate let tops: [Top]
+        let units: [URL]
+        fileprivate let splitArtifacts: [Artifact]
     }
 
     private struct Frame {
@@ -63,21 +77,50 @@ struct ProjectWalker: Sendable {
     }
 
     func walk(roots: [URL], progress: @escaping @Sendable (String) -> Void) async -> Result {
+        await walk(roots: roots, plan: plan(roots: roots), progress: progress)
+    }
+
+    /// A folder that is not a project is split into its subfolders: no project encloses them below the root,
+    /// so each one alone decides whether its artifacts are stale.
+    func plan(roots: [URL], splitDepth: Int = 3) -> Plan {
         let tops = roots.map(scanTopLevel)
-        let starts = tops.flatMap(\.subtrees)
-        let trees = await starts.concurrentMap { walkTree($0, progress: progress) }
+        var units: [URL] = []
+        var artifacts: [Artifact] = []
+        for start in tops.flatMap(\.subtrees) {
+            split(start, depth: splitDepth - 1, units: &units, artifacts: &artifacts)
+        }
+        return Plan(tops: tops, units: units, splitArtifacts: artifacts)
+    }
+
+    /// Each planned folder holds its projects and every project around them, so its walk alone decides
+    /// whether its artifacts are stale. onFolder gets each finished folder and its walk, on a worker task.
+    func walk(
+        roots: [URL],
+        plan: Plan,
+        progress: @escaping @Sendable (String) -> Void,
+        onFolder: (@Sendable (URL, Result) -> Void)? = nil
+    ) async -> Result {
+        let trees = await plan.units.concurrentMap { start in
+            let tree = walkTree(start, progress: progress)
+            // A cut-short folder has incomplete activity, which could make an active project look stale.
+            if let onFolder, !Task.isCancelled { onFolder(start, Self.result(roots: roots, tree: tree)) }
+            return tree
+        }
 
         var result = Result(roots: roots)
-        var newestByRoot = Dictionary(uniqueKeysWithValues: tops.map { ($0.root.filePath, $0.tree.newest) })
-        for (start, tree) in zip(starts, trees) {
-            let root = start.deletingLastPathComponent().filePath
-            newestByRoot[root] = max(newestByRoot[root] ?? .min, tree.newest)
+        result.artifacts = plan.splitArtifacts
+        // Files in split folders are not counted here; only a root that is itself a project uses this, and it never owns an artifact.
+        var newestByRoot = Dictionary(uniqueKeysWithValues: plan.tops.map { ($0.root.filePath, $0.tree.newest) })
+        for (start, tree) in zip(plan.units, trees) {
+            if let root = roots.first(where: { start.isInside($0) })?.filePath {
+                newestByRoot[root] = max(newestByRoot[root] ?? .min, tree.newest)
+            }
             result.artifacts += tree.artifacts
             for (path, newest) in tree.projects {
                 result.projectActivity[path] = Self.date(newest)
             }
         }
-        for top in tops {
+        for top in plan.tops {
             result.artifacts += top.tree.artifacts
             if top.hasMarker, let newest = newestByRoot[top.root.filePath] {
                 result.projectActivity[top.root.filePath] = Self.date(newest)
@@ -86,25 +129,68 @@ struct ProjectWalker: Sendable {
         return result
     }
 
-    private func scanTopLevel(_ root: URL) -> (root: URL, tree: Tree, hasMarker: Bool, subtrees: [URL]) {
-        var tree = Tree()
-        var hasMarker = false
-        var subtrees: [URL] = []
-        if Self.isToolchain(root) { return (root, tree, hasMarker, subtrees) }
+    private static func result(roots: [URL], tree: Tree) -> Result {
+        var result = Result(roots: roots)
+        result.artifacts = tree.artifacts
+        for (path, newest) in tree.projects {
+            result.projectActivity[path] = date(newest)
+        }
+        return result
+    }
+
+    private func split(_ folder: URL, depth: Int, units: inout [URL], artifacts: inout [Artifact]) {
+        guard depth > 0, let folderInfo = FilePath.status(folder), canSplit(folder) else {
+            units.append(folder)
+            return
+        }
+        for child in FilePath.children(of: folder) {
+            // fts stays on one device, so a mount point inside is left out here too.
+            guard let info = FilePath.status(child), FilePath.isDirectory(info), info.st_dev == folderInfo.st_dev else { continue }
+            switch decide(child) {
+            case .artifact(let rule): artifacts.append(Artifact(url: child, rule: rule))
+            case .skip: continue
+            case .enter: split(child, depth: depth - 1, units: &units, artifacts: &artifacts)
+            }
+        }
+    }
+
+    /// A folder no marker makes a project: none in the folder itself, and none such as
+    /// ProjectSettings/ProjectVersion.txt one level down.
+    private func canSplit(_ folder: URL) -> Bool {
+        var subfolders: [URL] = []
+        for child in FilePath.children(of: folder) {
+            guard let info = FilePath.status(child) else { continue }
+            if FilePath.isDirectory(info) {
+                subfolders.append(child)
+            } else if matcher.projectLevels(forFile: child.lastPathComponent, at: { child.filePath }).contains(0) {
+                return false
+            }
+        }
+        return !subfolders.contains { subfolder in
+            FilePath.children(of: subfolder).contains { file in
+                guard let info = FilePath.status(file), !FilePath.isDirectory(info) else { return false }
+                return matcher.projectLevels(forFile: file.lastPathComponent, at: { file.filePath }).contains(1)
+            }
+        }
+    }
+
+    private func scanTopLevel(_ root: URL) -> Top {
+        var top = Top(root: root)
+        if Self.isToolchain(root) { return top }
         for child in FilePath.children(of: root) {
             guard let info = FilePath.status(child) else { continue }
             guard FilePath.isDirectory(info) else {
-                if !FilePath.isSymlink(info) { tree.newest = max(tree.newest, info.st_mtimespec.tv_sec) }
-                hasMarker = hasMarker || matcher.projectLevels(forFile: child.lastPathComponent) { child.filePath }.contains(0)
+                if !FilePath.isSymlink(info) { top.tree.newest = max(top.tree.newest, info.st_mtimespec.tv_sec) }
+                top.hasMarker = top.hasMarker || matcher.projectLevels(forFile: child.lastPathComponent) { child.filePath }.contains(0)
                 continue
             }
             switch decide(child) {
-            case .artifact(let rule): tree.artifacts.append(Artifact(url: child, rule: rule))
+            case .artifact(let rule): top.tree.artifacts.append(Artifact(url: child, rule: rule))
             case .skip: continue
-            case .enter: subtrees.append(child)
+            case .enter: top.subtrees.append(child)
             }
         }
-        return (root, tree, hasMarker, subtrees)
+        return top
     }
 
     private func walkTree(_ start: URL, progress: @Sendable (String) -> Void) -> Tree {

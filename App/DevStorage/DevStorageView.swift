@@ -9,8 +9,15 @@ struct DevStorageView: View {
     var body: some View {
         if model.usages.isEmpty {
             if model.isMeasuring {
-                ProgressView("Measuring developer tools...")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                Group {
+                    if let fraction = model.fraction {
+                        ProgressView("Measuring developer tools...", value: fraction)
+                            .frame(maxWidth: 320)
+                    } else {
+                        ProgressView("Measuring developer tools...")
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ContentUnavailableView(
                     "No Developer Tools Found",
@@ -36,9 +43,11 @@ struct DevStorageView: View {
             }
             .overlay(alignment: .topTrailing) {
                 if model.isMeasuring {
-                    ProgressView()
-                        .controlSize(.small)
+                    ProgressView(value: model.fraction ?? 0)
+                        .progressViewStyle(.linear)
+                        .frame(width: 120)
                         .padding(8)
+                        .accessibilityLabel("Measuring progress")
                 }
             }
         }

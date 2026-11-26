@@ -10,8 +10,21 @@ struct CleanerView: View {
                 ScanProgressBanner(
                     phase: model.scanPhase,
                     currentPath: model.currentPath,
+                    fraction: model.fraction,
+                    foundCount: model.items.count,
+                    foundBytes: model.items.reduce(0) { $0 + $1.bytes },
                     onCancel: model.cancelScan
                 )
+                Divider()
+            }
+
+            if let location = model.location {
+                LocationPicker(location: location, onChange: { model.startScan() })
+                    .disabled(model.isScanning)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(.bar)
                 Divider()
             }
 

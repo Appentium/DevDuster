@@ -34,7 +34,7 @@ public sealed partial class DiskMapPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        ViewModel.ReloadLocations();
+        ViewModel.Location.Refresh();
         await ViewModel.ScanIfNeededAsync();
     }
 
@@ -42,13 +42,6 @@ public sealed partial class DiskMapPage : Page
     {
         base.OnNavigatedFrom(e);
         ViewModel.CancelScan();
-    }
-
-    private async void OnChooseFolderClicked(object sender, RoutedEventArgs e)
-    {
-        if (App.Current.MainWindow is not { } window) return;
-        var folder = await Ui.PickFolderAsync(window);
-        if (folder is not null) ViewModel.SetCustomFolder(folder);
     }
 
     private void OnBreadcrumbClicked(object sender, RoutedEventArgs e)

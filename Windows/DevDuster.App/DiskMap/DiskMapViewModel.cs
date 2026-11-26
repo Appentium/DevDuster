@@ -7,8 +7,6 @@ using DevDuster.Core.Scan;
 
 namespace DevDuster.App.DiskMap;
 
-public sealed record DiskLocationOption(string Label, string Path);
-
 public sealed record BreadcrumbEntry(int Index, string Name);
 
 public sealed record InsightRow(Insight Insight)
@@ -25,14 +23,13 @@ public sealed partial class DiskMapViewModel : ObservableObject
     private readonly AppServices _services;
     private readonly List<DiskNode> _trail = [];
     private DiskNode? _rootNode;
-    private string? _customFolder;
     private CancellationTokenSource? _scanCts;
-    private bool _suppressLocationScan;
-
     public DiskMapViewModel(AppServices services)
     {
         _services = services;
-        Locations = [];
+        // The map needs one folder, so "everywhere" is not offered here.
+        Location = new ScanLocation(services, "diskMap", offersEverywhere: false);
+        Location.Changed += () => _ = StartScanAsync();
         Trail = [];
         ExcludedPaths = [];
         UnreadablePaths = [];
@@ -43,7 +40,6 @@ public sealed partial class DiskMapViewModel : ObservableObject
         UnreadableText = "";
         EmptyMessage = "";
         SelectedMinSizeIndex = 0;
-        ReloadLocations();
     }
 
     public event Action? TreemapChanged;
@@ -78,11 +74,7 @@ public sealed partial class DiskMapViewModel : ObservableObject
     [ObservableProperty]
     public partial string EmptyMessage { get; set; }
 
-    [ObservableProperty]
-    public partial IReadOnlyList<DiskLocationOption> Locations { get; set; }
-
-    [ObservableProperty]
-    public partial int SelectedLocationIndex { get; set; }
+    public ScanLocation Location { get; }
 
     [ObservableProperty]
     public partial int SelectedMinSizeIndex { get; set; }
@@ -115,11 +107,6 @@ public sealed partial class DiskMapViewModel : ObservableObject
 
     public IReadOnlyList<DiskNode> VisibleChildren { get; private set; } = [];
 
-    partial void OnSelectedLocationIndexChanged(int value)
-    {
-        if (!_suppressLocationScan && value >= 0 && value < Locations.Count) _ = StartScanAsync();
-    }
-
     partial void OnSelectedMinSizeIndexChanged(int value) => UpdateCurrentView();
 
     partial void OnSelectedNodeChanged(DiskNode? value)
@@ -127,30 +114,6 @@ public sealed partial class DiskMapViewModel : ObservableObject
         var valid = value is not null && value.FoldedCount == 0 && !string.IsNullOrEmpty(value.Path);
         CanRevealSelected = valid;
         CanDeleteSelected = valid;
-    }
-
-    public void ReloadLocations()
-    {
-        _suppressLocationScan = true;
-        var list = new List<DiskLocationOption>();
-        // The system drive comes first, so the map opens on the whole PC.
-        foreach (var drive in _services.Drives.Drives().OrderByDescending(drive => drive.IsSystem))
-        {
-            var label = string.IsNullOrWhiteSpace(drive.Label) ? drive.Root : $"{drive.Label} ({drive.Root.TrimEnd('\\')})";
-            list.Add(new DiskLocationOption(label, drive.Root));
-        }
-        list.Add(new DiskLocationOption("Home (~)", _services.Folders.Home));
-        if (_customFolder is not null) list.Add(new DiskLocationOption(Path.GetFileName(_customFolder), _customFolder));
-        Locations = list;
-        if (SelectedLocationIndex < 0 || SelectedLocationIndex >= Locations.Count) SelectedLocationIndex = 0;
-        _suppressLocationScan = false;
-    }
-
-    public void SetCustomFolder(string folder)
-    {
-        _customFolder = folder;
-        ReloadLocations();
-        SelectedLocationIndex = Locations.Count - 1;
     }
 
     public async Task ScanIfNeededAsync()
@@ -161,11 +124,11 @@ public sealed partial class DiskMapViewModel : ObservableObject
     [RelayCommand]
     public async Task StartScanAsync()
     {
-        if (SelectedLocationIndex < 0 || SelectedLocationIndex >= Locations.Count) return;
+        if (Location.Selected.Path is not { } targetPath) return;
         CancelScan();
         _scanCts = new CancellationTokenSource();
         var ct = _scanCts.Token;
-        var target = Locations[SelectedLocationIndex];
+        var target = Location.Selected;
 
         IsScanning = true;
         _rootNode = null;
@@ -190,7 +153,7 @@ public sealed partial class DiskMapViewModel : ObservableObject
         try
         {
             var excluded = ExcludedPaths.ToList();
-            var node = await Task.Run(() => _services.DiskMapBuilder.RunAsync(target.Path, excluded, progress, ct), ct);
+            var node = await Task.Run(() => _services.DiskMapBuilder.RunAsync(targetPath, excluded, progress, ct), ct);
             if (ct.IsCancellationRequested) return;
             if (node is not null && _services.Drives.DriveOf(node.Path) is { } drive) node = DiskAccounting.WithUnseen(node, drive);
             _rootNode = node;

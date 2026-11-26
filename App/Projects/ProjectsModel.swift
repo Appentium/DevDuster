@@ -29,6 +29,10 @@ final class ProjectsModel {
 
     private(set) var isScanning = false
     private(set) var hasScanned = false
+    private(set) var currentPath = ""
+    /// From 0 to 1, or nil until the scan knows how much work there is.
+    private(set) var fraction: Double?
+    let location = ScanLocationModel(key: "projects")
     var sortOrder: SortOrder = .size
     var selectedIDs: Set<ScanItem.ID> = []
     var cleanSession = CleanSessionModel()
@@ -69,16 +73,30 @@ final class ProjectsModel {
         cleanSession.dismissSummary()
         rawProjects = []
         selectedIDs = []
+        currentPath = ""
+        fraction = nil
         hasScanned = false
         isScanning = true
 
         let catalog = self.catalog
-        let options = settings.scanOptions()
+        let options = settings.scanOptions(scope: location.scope)
         scanTask = Task { [weak self] in
-            let scanned = await ProjectScanner(catalog: catalog).scan(options)
+            for await event in ProjectScanner(catalog: catalog).events(options) {
+                guard let self, !Task.isCancelled else { break }
+                switch event {
+                case .progress(let path):
+                    self.currentPath = path
+                case .fraction(let value):
+                    // Parallel work can report slightly out of order; the bar never moves back.
+                    self.fraction = max(self.fraction ?? 0, value)
+                case .project(let project):
+                    self.rawProjects.append(ProjectEntry(project: project, folders: project.folders))
+                case .finished(let scanned):
+                    self.rawProjects = scanned.map { ProjectEntry(project: $0, folders: $0.folders) }
+                    self.hasScanned = true
+                }
+            }
             guard let self, !Task.isCancelled else { return }
-            self.rawProjects = scanned.map { ProjectEntry(project: $0, folders: $0.folders) }
-            self.hasScanned = true
             self.isScanning = false
             self.scanTask = nil
         }

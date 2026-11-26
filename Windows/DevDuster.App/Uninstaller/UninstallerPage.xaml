@@ -122,18 +122,25 @@
             <PivotItem Header="Leftover folders" Margin="0">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
+                    <shared:ScanProgressPanel
+                        Status="{x:Bind ViewModel.Status}"
+                        Margin="0,0,0,8"
+                        Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsSearchingLeftovers), Mode=OneWay}" />
+
                     <TextBlock
+                        Grid.Row="1"
                         HorizontalAlignment="Center"
                         VerticalAlignment="Center"
                         Text="No leftover folders found."
                         Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                         Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasNoLeftovers), Mode=OneWay}" />
 
-                    <ScrollViewer Padding="24,0,24,24" VerticalScrollBarVisibility="Auto">
+                    <ScrollViewer Grid.Row="1" Padding="24,0,24,24" VerticalScrollBarVisibility="Auto">
                         <ItemsRepeater ItemsSource="{x:Bind ViewModel.Leftovers, Mode=OneWay}">
                             <ItemsRepeater.Layout>
                                 <StackLayout Spacing="6" />
@@ -166,13 +173,13 @@
                     </ScrollViewer>
 
                     <shared:FooterBar
-                        Grid.Row="1"
+                        Grid.Row="2"
                         ActionTitle="Remove"
                         SelectedCount="{x:Bind ViewModel.SelectedCount, Mode=OneWay}"
                         SelectedBytes="{x:Bind ViewModel.SelectedBytes, Mode=OneWay}"
                         CanSelectAll="{x:Bind shared:Ui.Not(ViewModel.HasNoLeftovers), Mode=OneWay}"
                         CanDeselectAll="{x:Bind shared:Ui.Not(ViewModel.HasNoLeftovers), Mode=OneWay}"
-                        IsBusy="{x:Bind ViewModel.IsCleaning, Mode=OneWay}"
+                        IsBusy="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
                         SelectAllCommand="{x:Bind ViewModel.SelectAllCommand}"
                         DeselectAllCommand="{x:Bind ViewModel.DeselectAllCommand}"
                         CleanCommand="{x:Bind RemoveLeftoversCommand}" />

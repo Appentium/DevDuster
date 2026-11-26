@@ -10,12 +10,15 @@ namespace DevDuster.App.Cleaner;
 public sealed partial class RuleGroupViewModel : ObservableObject
 {
     private readonly Action _selectionChanged;
+    private readonly Action<string, bool> _expandedChanged;
 
-    public RuleGroupViewModel(Rule rule, IReadOnlyList<SelectableItem> items, Action selectionChanged)
+    public RuleGroupViewModel(Rule rule, IReadOnlyList<SelectableItem> items, Action selectionChanged, bool isExpanded, Action<string, bool> expandedChanged)
     {
         Rule = rule;
         Items = items;
         _selectionChanged = selectionChanged;
+        _expandedChanged = expandedChanged;
+        IsExpanded = isExpanded;
         TotalBytes = items.Sum(i => i.Bytes);
         foreach (var item in items)
         {
@@ -36,6 +39,12 @@ public sealed partial class RuleGroupViewModel : ObservableObject
     public IReadOnlyList<SelectableItem> Items { get; }
     public long TotalBytes { get; }
     public string SizeText => ByteText.Format(TotalBytes);
+
+    // Kept by the page, because the list is rebuilt while a scan adds items.
+    [ObservableProperty]
+    public partial bool IsExpanded { get; set; }
+
+    partial void OnIsExpandedChanged(bool value) => _expandedChanged(Rule.Id, value);
 
     public bool? IsChecked
     {
@@ -70,7 +79,12 @@ public sealed record SkippedItemDisplay(string Message, string Path);
 
 public sealed partial class CleanerViewModel : ObservableObject
 {
+    private static readonly TimeSpan RebuildInterval = TimeSpan.FromSeconds(1);
+
     private readonly AppServices _services;
+    private readonly HashSet<string> _expandedRules = [];
+    private LiveFeed<ScanItem>? _feed;
+    private DateTime _lastRebuild;
     private readonly List<SelectableItem> _allItems = [];
     private IReadOnlyList<SkippedRule> _rawSkippedRules = [];
     private IReadOnlyList<SkippedItem> _rawSkippedItems = [];
@@ -79,25 +93,31 @@ public sealed partial class CleanerViewModel : ObservableObject
     public CleanerViewModel(AppServices services)
     {
         _services = services;
+        Location = new ScanLocation(services, "cleaner");
+        Location.Changed += () => _ = StartScanAsync();
         Sections = [];
         SkippedRules = [];
         SkippedItems = [];
-        ProgressText = "";
         StatusText = "Scan your profile and drives for caches, logs, and stale build outputs.";
         ScanButtonLabel = "Scan";
     }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
     public partial bool HasScanned { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsCleaning { get; set; }
 
-    [ObservableProperty]
-    public partial string ProgressText { get; set; }
+    // Items listed while scanning can be picked, but cleaning waits for the scan to finish.
+    public bool IsBusy => IsScanning || IsCleaning;
+
+    public ScanLocation Location { get; }
+    public ScanStatus Status { get; } = new();
 
     [ObservableProperty]
     public partial string StatusText { get; set; }
@@ -154,27 +174,23 @@ public sealed partial class CleanerViewModel : ObservableObject
         SkippedRules = [];
         SkippedItems = [];
         UpdateCounts();
-        ProgressText = "Starting scan...";
+        Status.Reset("Starting scan...");
         StatusText = "Scanning...";
-
-        var progress = new ThrottledProgress<ScanProgress>(p =>
-        {
-            var phase = p.Phase switch
-            {
-                ScanPhase.Rules => "Finding rules",
-                ScanPhase.Projects => "Scanning projects",
-                ScanPhase.Measuring => "Measuring",
-                _ => "Scanning",
-            };
-            ProgressText = $"{phase}: {p.Path}";
-        });
+        _lastRebuild = DateTime.UtcNow;
+        _feed = new LiveFeed<ScanItem>(ApplyFeed);
+        var feed = _feed;
+        var progress = new ActionProgress<ScanProgress>(p => feed.Report(new ScanUpdate<ScanItem>($"{PhaseText(p.Phase)}: {p.Path}", p.Fraction, p.Found)));
 
         try
         {
-            var options = _services.Settings.ToScanOptions();
+            var options = _services.Settings.ToScanOptions(scope: Location.Scope);
             var report = await _services.Scanner.RunAsync(options, progress, ct);
             if (ct.IsCancellationRequested) return;
-            _allItems.AddRange(report.Items.Select(item => new SelectableItem(item, item.Rule.Tier == Tier.Safe)));
+            StopFeed();
+            // The report is the final word; choices made while scanning carry over.
+            var chosen = _allItems.ToDictionary(item => item.Path, item => item.IsSelected, PathTools.Comparer);
+            _allItems.Clear();
+            _allItems.AddRange(report.Items.Select(item => new SelectableItem(item, chosen.TryGetValue(item.Path, out var selected) ? selected : item.Rule.Tier == Tier.Safe)));
             _rawSkippedRules = report.Skipped;
             _rawSkippedItems = report.SkippedItems;
             SkippedRules = [.. report.Skipped.Select(s => new SkippedRuleDisplay(s.Rule.Title, $"Skipped while {s.RunningProcess} is running"))];
@@ -182,6 +198,7 @@ public sealed partial class CleanerViewModel : ObservableObject
             HasSkipped = SkippedRules.Count > 0 || SkippedItems.Count > 0;
             HasScanned = true;
             ScanButtonLabel = "Rescan";
+            IsScanning = false;
             _services.UpdateScanReport(report);
             RebuildGroups();
             StatusText = _allItems.Count == 0 ? "No reclaimable items matched the built-in rules." : "";
@@ -192,14 +209,48 @@ public sealed partial class CleanerViewModel : ObservableObject
         }
         finally
         {
+            StopFeed();
             IsScanning = false;
-            ProgressText = "";
+            UpdateCounts();
+        }
+    }
+
+    private static string PhaseText(ScanPhase phase) => phase switch
+    {
+        ScanPhase.Rules => "Checking caches",
+        ScanPhase.Projects => "Searching projects",
+        _ => "Measuring",
+    };
+
+    private void StopFeed()
+    {
+        // Cleared first, so the last batch rebuilds the list straight away.
+        var feed = _feed;
+        _feed = null;
+        feed?.Stop();
+    }
+
+    private void ApplyFeed(IReadOnlyList<ScanItem> found, ScanUpdate<ScanItem>? latest)
+    {
+        foreach (var item in found) _allItems.Add(new SelectableItem(item, item.Rule.Tier == Tier.Safe));
+        Status.Update(latest?.Path, latest?.Fraction);
+        Status.SetFound(_allItems.Count, _allItems.Sum(i => i.Bytes));
+        if (found.Count == 0) return;
+        if (_feed is null || DateTime.UtcNow - _lastRebuild >= RebuildInterval)
+        {
+            _lastRebuild = DateTime.UtcNow;
+            RebuildGroups();
+        }
+        else
+        {
+            UpdateCounts();
         }
     }
 
     [RelayCommand]
     public void CancelScan()
     {
+        StopFeed();
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;
@@ -243,7 +294,8 @@ public sealed partial class CleanerViewModel : ObservableObject
                     var sortedItems = sort == SortOrder.Size
                         ? g.OrderByDescending(i => i.Bytes).ThenBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ToList()
                         : g.OrderBy(i => i.Name, StringComparer.CurrentCultureIgnoreCase).ThenByDescending(i => i.Bytes).ToList();
-                    return new RuleGroupViewModel(g.First().Item.Rule, sortedItems, UpdateCounts);
+                    var rule = g.First().Item.Rule;
+                    return new RuleGroupViewModel(rule, sortedItems, UpdateCounts, _expandedRules.Contains(rule.Id), OnRuleExpanded);
                 });
             var sortedGroups = sort == SortOrder.Size
                 ? groups.OrderByDescending(g => g.TotalBytes).ThenBy(g => g.Title, StringComparer.CurrentCultureIgnoreCase).ToList()
@@ -253,6 +305,12 @@ public sealed partial class CleanerViewModel : ObservableObject
         Sections = built;
         HasResults = built.Count > 0 || HasSkipped;
         UpdateCounts();
+    }
+
+    private void OnRuleExpanded(string ruleId, bool expanded)
+    {
+        if (expanded) _expandedRules.Add(ruleId);
+        else _expandedRules.Remove(ruleId);
     }
 
     private void UpdateCounts()

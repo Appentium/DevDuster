@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 public struct DusterScanner: Sendable {
     private let catalog: RuleCatalog
@@ -33,31 +34,67 @@ public struct DusterScanner: Sendable {
         emit(.progress(.rules, path: catalog.home.filePath))
         let home = homeCandidates(excluded: excluded)
         let running = runningGuards(for: options.tiers)
-        var candidates = home.offered.filter { item in
+        let homeItems = home.offered.filter { item in
             options.tiers.contains(item.rule.tier)
                 && !item.rule.processGuard.contains(where: running.contains)
                 && isOldEnough(item)
                 && scope.map { $0.contains(where: item.url.isSameOrInside) } ?? true
         }
 
-        if catalog.projectRules.contains(where: { options.tiers.contains($0.tier) }) {
-            candidates += await staleArtifacts(options: options, excluded: excluded, scope: scope, claimed: home.claimed, emit: emit)
-        }
+        let walksProjects = options.walksProjects && catalog.projectRules.contains { options.tiers.contains($0.tier) }
+        let (walker, foundRoots) = Self.projectWalk(catalog: catalog, volumes: volumes, excluded: excluded, scope: scope)
+        let roots = walksProjects ? foundRoots : []
+        let plan = walker.plan(roots: roots)
 
-        var seen: Set<String> = []
-        candidates = candidates.filter { seen.insert($0.url.filePath).inserted }
+        // One unit per home candidate and one per planned project folder; neither is known in bytes up front.
+        let total = homeItems.count + plan.units.count
+        let state = OSAllocatedUnfairLock(initialState: MeasureState())
+        let finishUnit: @Sendable () -> Void = {
+            let done = state.withLock { state in
+                state.done += 1
+                return state.done
+            }
+            if total > 0 { emit(.fraction(min(1, Double(done) / Double(total)))) }
+        }
 
         let appGuard = RunningAppGuard(home: catalog.home, apps: processes.runningApps())
         let sizes = SizeCalculator()
-        let measured = await candidates.concurrentMap { candidate in
+        // Called from several tasks at once, so each item is shown the moment it is measured.
+        let measure: @Sendable (ScanItem) -> Void = { candidate in
+            guard state.withLock({ $0.seen.insert(candidate.url.filePath).inserted }) else { return }
             emit(.progress(.measuring, path: candidate.url.filePath))
             let item = ScanItem(rule: candidate.rule, url: candidate.url, bytes: sizes.allocatedSize(of: candidate.url))
+            guard item.bytes > 0, !Task.isCancelled else { return }
             let owner = appGuard.owner(of: item)
-            if item.bytes > 0, owner == nil { emit(.item(item)) }
-            return (item: item, owner: owner)
-        }.filter { $0.item.bytes > 0 }
-        var items = measured.filter { $0.owner == nil }.map(\.item)
-        let skippedItems = measured.compactMap { entry in entry.owner.map { SkippedItem(item: entry.item, runningApp: $0.name) } }
+            state.withLock { state in
+                if let owner {
+                    state.skippedItems.append(SkippedItem(item: item, runningApp: owner.name))
+                } else {
+                    state.items.append(item)
+                }
+            }
+            if owner == nil { emit(.item(item)) }
+        }
+
+        _ = await homeItems.concurrentMap { candidate in
+            measure(candidate)
+            finishUnit()
+        }
+
+        if walksProjects {
+            let claimed = home.claimed
+            _ = await walker.walk(roots: roots, plan: plan, progress: { emit(.progress(.projects, path: $0)) }) { _, folder in
+                for artifact in folder.artifacts where options.tiers.contains(artifact.rule.tier) && !Task.isCancelled {
+                    guard let activity = folder.activity(of: artifact), options.isStale(activity) else { continue }
+                    Self.claim(artifact.url, avoiding: claimed).forEach { measure(ScanItem(rule: artifact.rule, url: $0, bytes: 0)) }
+                }
+                finishUnit()
+            }
+        }
+
+        let measured = state.withLock { $0 }
+        var items = measured.items
+        let skippedItems = measured.skippedItems
 
         if scope == nil {
             let tooled = catalog.rules.filter { options.tiers.contains($0.tier) }.flatMap(toolItems)
@@ -100,25 +137,21 @@ public struct DusterScanner: Sendable {
         }.flatMap { claim($0, avoiding: inner) }
     }
 
-    private func staleArtifacts(
-        options: ScanOptions,
-        excluded: [URL],
-        scope: [URL]?,
-        claimed: [URL],
-        emit: @escaping @Sendable (ScanEvent) -> Void
-    ) async -> [ScanItem] {
-        let library = FilePath.real(catalog.home.appending(path: "Library"))
-        let walker = ProjectWalker(matcher: ProjectArtifactMatcher(catalog: catalog), excluded: excluded + [library].compactMap { $0 })
+    private struct MeasureState: Sendable {
+        var done = 0
+        var seen: Set<String> = []
+        var items: [ScanItem] = []
+        var skippedItems: [SkippedItem] = []
+    }
+
+    /// The project walker and where it starts. A root inside ~/Library or an excluded folder is dropped even when the user
+    /// picked it: build-like folders there belong to apps and package caches, not to projects.
+    static func projectWalk(catalog: RuleCatalog, volumes: VolumeService, excluded: [URL], scope: [URL]?) -> (walker: ProjectWalker, roots: [URL]) {
+        let blocked = excluded + [FilePath.real(catalog.home.appending(path: "Library"))].compactMap { $0 }
+        let walker = ProjectWalker(matcher: ProjectArtifactMatcher(catalog: catalog), excluded: blocked)
         let roots = ProjectWalker.searchRoots(home: catalog.home, volumes: volumes.volumes(), scope: scope)
-        let walk = await walker.walk(roots: roots) { emit(.progress(.projects, path: $0)) }
-        // A cut-short walk has incomplete activity, which could make an active project look stale.
-        guard !Task.isCancelled else { return [] }
-        return walk.artifacts.filter { artifact in
-            guard options.tiers.contains(artifact.rule.tier), let activity = walk.activity(of: artifact) else { return false }
-            return options.isStale(activity)
-        }.flatMap { artifact in
-            Self.claim(artifact.url, avoiding: claimed).map { ScanItem(rule: artifact.rule, url: $0, bytes: 0) }
-        }
+            .filter { root in !blocked.contains { root.isSameOrInside($0) } }
+        return (walker, roots)
     }
 
     private func runningGuards(for tiers: Set<Tier>) -> Set<String> {

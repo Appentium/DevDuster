@@ -14,7 +14,7 @@ struct DeveloperToolsView: View {
             locationBar
             Divider()
             if cleaner.isScanning {
-                ScanProgressBanner(phase: cleaner.scanPhase, currentPath: cleaner.currentPath, onCancel: cleaner.cancelScan)
+                ScanProgressBanner(phase: cleaner.scanPhase, currentPath: cleaner.currentPath, fraction: cleaner.fraction, onCancel: cleaner.cancelScan)
                 Divider()
             }
             if let summary = cleaner.cleanSession.summary {
@@ -89,7 +89,8 @@ struct DeveloperToolsView: View {
     }
 
     private func scan() {
-        cleaner.startScan(home: storage.scanHome, scope: storage.scanScope)
+        // Only cache items inside tool folders are counted, so no project walk is needed.
+        cleaner.startScan(home: storage.scanHome, scope: storage.scanScope, walksProjects: false)
     }
 
     @ViewBuilder

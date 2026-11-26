@@ -98,27 +98,36 @@ public sealed partial class ProjectsViewModel : ObservableObject
     private readonly AppServices _services;
     private readonly List<ProjectGroupViewModel> _rawProjects = [];
     private CancellationTokenSource? _scanCts;
+    private LiveFeed<DevProject>? _feed;
+    private ScanOptions? _options;
+    private DateTime _lastSort;
 
     public ProjectsViewModel(AppServices services)
     {
         _services = services;
+        Location = new ScanLocation(services, "projects");
+        Location.Changed += () => _ = StartScanAsync();
         Projects = [];
-        ProgressText = "";
         StatusText = "Scan for projects with build outputs or dependency folders.";
         ScanButtonLabel = "Scan";
     }
 
+    public ScanLocation Location { get; }
+    public ScanStatus Status { get; } = new();
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
     public partial bool HasScanned { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsCleaning { get; set; }
 
-    [ObservableProperty]
-    public partial string ProgressText { get; set; }
+    // Projects listed while scanning can be picked, but cleaning waits for the scan to finish.
+    public bool IsBusy => IsScanning || IsCleaning;
 
     [ObservableProperty]
     public partial string StatusText { get; set; }
@@ -171,19 +180,31 @@ public sealed partial class ProjectsViewModel : ObservableObject
         _rawProjects.Clear();
         Projects = [];
         UpdateCounts();
-        ProgressText = "Scanning projects...";
+        Status.Reset("Searching for projects...");
         StatusText = "Scanning projects...";
+        var options = _services.Settings.ToScanOptions(scope: Location.Scope);
+        _options = options;
+        _lastSort = DateTime.UtcNow;
+        _feed = new LiveFeed<DevProject>(ApplyFeed);
 
-        IProgress<string> progress = new ThrottledProgress<string>(path => ProgressText = path);
         try
         {
-            var options = _services.Settings.ToScanOptions();
-            var scanned = await _services.ProjectScanner.ScanAsync(options, path => progress.Report(path), ct);
+            var scanned = await _services.ProjectScanner.ScanAsync(options, _feed, ct);
             if (ct.IsCancellationRequested) return;
+            StopFeed();
+            // The finished list is the final word; choices made while scanning carry over.
+            var chosen = _rawProjects.SelectMany(p => p.Folders).ToDictionary(f => f.FullPath, f => f.IsSelected, PathTools.Comparer);
+            _rawProjects.Clear();
             foreach (var project in scanned)
             {
-                _rawProjects.Add(new ProjectGroupViewModel(project, options.IsStale(project.LastActivityUtc), UpdateCounts));
+                var group = new ProjectGroupViewModel(project, options.IsStale(project.LastActivityUtc), UpdateCounts);
+                foreach (var folder in group.Folders)
+                {
+                    if (chosen.TryGetValue(folder.FullPath, out var selected)) folder.IsSelected = selected;
+                }
+                _rawProjects.Add(group);
             }
+            IsScanning = false;
             HasScanned = true;
             ScanButtonLabel = "Rescan";
             ApplySort();
@@ -195,14 +216,40 @@ public sealed partial class ProjectsViewModel : ObservableObject
         }
         finally
         {
+            StopFeed();
             IsScanning = false;
-            ProgressText = "";
+            UpdateCounts();
+        }
+    }
+
+    private void StopFeed()
+    {
+        // Cleared first, so the last batch re-sorts the list straight away.
+        var feed = _feed;
+        _feed = null;
+        feed?.Stop();
+    }
+
+    private void ApplyFeed(IReadOnlyList<DevProject> found, ScanUpdate<DevProject>? latest)
+    {
+        foreach (var project in found)
+        {
+            _rawProjects.Add(new ProjectGroupViewModel(project, _options?.IsStale(project.LastActivityUtc) ?? false, UpdateCounts));
+        }
+        Status.Update(latest?.Path, latest?.Fraction);
+        Status.SetFound(_rawProjects.Count, _rawProjects.Sum(p => p.TotalBytes), "project(s)");
+        if (found.Count == 0) return;
+        if (_feed is null || DateTime.UtcNow - _lastSort >= TimeSpan.FromSeconds(1))
+        {
+            _lastSort = DateTime.UtcNow;
+            ApplySort();
         }
     }
 
     [RelayCommand]
     public void CancelScan()
     {
+        StopFeed();
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;

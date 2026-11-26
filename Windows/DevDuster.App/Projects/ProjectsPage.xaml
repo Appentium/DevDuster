@@ -21,16 +21,21 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock Text="Projects" Style="{ThemeResource TitleTextBlockStyle}" VerticalAlignment="Center" />
-            <Button
+            <shared:LocationPicker
                 Grid.Column="1"
+                Location="{x:Bind ViewModel.Location}"
+                IsEnabled="{x:Bind shared:Ui.Not(ViewModel.IsScanning), Mode=OneWay}" />
+            <Button
+                Grid.Column="2"
                 VerticalAlignment="Bottom"
                 Content="Select stale"
                 Command="{x:Bind ViewModel.SelectStaleCommand}"
                 IsEnabled="{x:Bind ViewModel.CanSelectStale, Mode=OneWay}" />
             <ComboBox
-                Grid.Column="2"
+                Grid.Column="3"
                 Header="Sort"
                 SelectedIndex="{x:Bind ViewModel.SelectedSortIndex, Mode=TwoWay}"
                 Visibility="{x:Bind shared:Ui.Visible(ViewModel.HasResults), Mode=OneWay}">
@@ -38,13 +43,13 @@
                 <ComboBoxItem Content="Name" />
             </ComboBox>
             <Button
-                Grid.Column="3"
+                Grid.Column="4"
                 VerticalAlignment="Bottom"
                 Content="Cancel"
                 Command="{x:Bind ViewModel.CancelScanCommand}"
                 Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}" />
             <Button
-                Grid.Column="4"
+                Grid.Column="5"
                 VerticalAlignment="Bottom"
                 Content="{x:Bind ViewModel.ScanButtonLabel, Mode=OneWay}"
                 Style="{ThemeResource AccentButtonStyle}"
@@ -52,20 +57,10 @@
                 Visibility="{x:Bind shared:Ui.Collapsed(ViewModel.IsScanning), Mode=OneWay}" />
         </Grid>
 
-        <Border
+        <shared:ScanProgressPanel
             Grid.Row="1"
-            Background="{ThemeResource SubtleFillColorSecondaryBrush}"
-            Padding="24,8"
-            Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}">
-            <StackPanel Orientation="Horizontal" Spacing="10">
-                <ProgressRing IsActive="{x:Bind ViewModel.IsScanning, Mode=OneWay}" Width="18" Height="18" />
-                <TextBlock
-                    Text="{x:Bind ViewModel.ProgressText, Mode=OneWay}"
-                    TextTrimming="CharacterEllipsis"
-                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                    VerticalAlignment="Center" />
-            </StackPanel>
-        </Border>
+            Status="{x:Bind ViewModel.Status}"
+            Visibility="{x:Bind shared:Ui.Visible(ViewModel.IsScanning), Mode=OneWay}" />
 
         <ScrollViewer Grid.Row="2" Padding="24,8" VerticalScrollBarVisibility="Auto">
             <StackPanel Spacing="12">
@@ -153,7 +148,7 @@
             SelectedBytes="{x:Bind ViewModel.SelectedBytes, Mode=OneWay}"
             CanSelectAll="{x:Bind ViewModel.CanSelectAll, Mode=OneWay}"
             CanDeselectAll="{x:Bind ViewModel.CanDeselectAll, Mode=OneWay}"
-            IsBusy="{x:Bind ViewModel.IsCleaning, Mode=OneWay}"
+            IsBusy="{x:Bind ViewModel.IsBusy, Mode=OneWay}"
             SelectAllCommand="{x:Bind ViewModel.SelectAllCommand}"
             DeselectAllCommand="{x:Bind ViewModel.DeselectAllCommand}"
             CleanCommand="{x:Bind CleanCommand}" />

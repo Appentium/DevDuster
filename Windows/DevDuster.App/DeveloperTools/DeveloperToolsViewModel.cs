@@ -66,13 +66,17 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
 {
     private readonly AppServices _services;
     private readonly List<ScanItem> _cleanableItems = [];
+    // The cleaner scan inside the tool folders fills this share of the bar; measuring each tool fills the rest.
+    private const double ScanShare = 0.6;
+
+    private readonly List<DevToolUsage> _usages = [];
     private CancellationTokenSource? _scanCts;
+    private LiveFeed<DevToolUsage>? _feed;
 
     public DeveloperToolsViewModel(AppServices services)
     {
         _services = services;
         Tools = [];
-        ProgressText = "";
         StatusText = "Measure SDKs, toolchains, and package stores split into Safe, Review, Essential, and Other.";
         ScanButtonLabel = "Scan";
         MeasuredTotalText = "0 B";
@@ -82,17 +86,21 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
         OtherTotalText = "0 B";
     }
 
+    public ScanStatus Status { get; } = new();
+
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsScanning { get; set; }
 
     [ObservableProperty]
     public partial bool HasScanned { get; set; }
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBusy))]
     public partial bool IsCleaning { get; set; }
 
-    [ObservableProperty]
-    public partial string ProgressText { get; set; }
+    // Tools listed while scanning can be picked, but cleaning waits for the scan to finish.
+    public bool IsBusy => IsScanning || IsCleaning;
 
     [ObservableProperty]
     public partial string StatusText { get; set; }
@@ -147,19 +155,25 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
         _cleanableItems.Clear();
         Tools = [];
         UpdateCounts();
-        ProgressText = "Scanning developer tools...";
+        Status.Reset("Scanning developer tools...");
         StatusText = "Scanning...";
-
-        var progress = new ThrottledProgress<ScanProgress>(p => ProgressText = p.Path);
+        _usages.Clear();
+        _feed = new LiveFeed<DevToolUsage>(ApplyFeed);
+        var feed = _feed;
         try
         {
-            var options = _services.Settings.ToScanOptions();
-            var report = await _services.Scanner.RunAsync(options, progress, ct);
+            // Only cache items inside a tool's folder are counted, so the scan stays inside those folders and walks no projects.
+            var roots = _services.DevStorageAnalyzer.Roots();
+            var options = _services.Settings.ToScanOptions(scope: roots) with { WalksProjects = false };
+            var scanProgress = new ActionProgress<ScanProgress>(p => feed.Report(new ScanUpdate<DevToolUsage>(p.Path, p.Fraction * ScanShare)));
+            var report = roots.Count == 0 ? new ScanReport([], [], []) : await _services.Scanner.RunAsync(options, scanProgress, ct);
             if (ct.IsCancellationRequested) return;
             _cleanableItems.AddRange(report.Items);
-            ProgressText = "Measuring developer tool roots...";
-            var usages = await _services.DevStorageAnalyzer.RunAsync(_cleanableItems, ct);
+            var toolProgress = new ActionProgress<ScanUpdate<DevToolUsage>>(u => feed.Report(u with { Fraction = ScanShare + (u.Fraction ?? 0) * (1 - ScanShare) }));
+            var usages = await _services.DevStorageAnalyzer.RunAsync(_cleanableItems, ct, toolProgress);
             if (ct.IsCancellationRequested) return;
+            StopFeed();
+            IsScanning = false;
             BuildCards(usages);
             HasScanned = true;
             ScanButtonLabel = "Rescan";
@@ -171,14 +185,16 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
         }
         finally
         {
+            StopFeed();
             IsScanning = false;
-            ProgressText = "";
+            UpdateCounts();
         }
     }
 
     [RelayCommand]
     public void CancelScan()
     {
+        StopFeed();
         _scanCts?.Cancel();
         _scanCts?.Dispose();
         _scanCts = null;
@@ -208,8 +224,26 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
         BuildCards(usages);
     }
 
+    private void StopFeed()
+    {
+        var feed = _feed;
+        _feed = null;
+        feed?.Stop();
+    }
+
+    private void ApplyFeed(IReadOnlyList<DevToolUsage> found, ScanUpdate<DevToolUsage>? latest)
+    {
+        Status.Update(latest?.Path, latest?.Fraction);
+        if (found.Count == 0) return;
+        _usages.AddRange(found);
+        BuildCards([.. _usages.OrderByDescending(u => u.TotalBytes)]);
+        Status.SetFound(_usages.Count, _usages.Sum(u => u.TotalBytes), "tool(s)");
+    }
+
     private void BuildCards(IReadOnlyList<DevToolUsage> usages)
     {
+        // Cards are rebuilt as tools are measured; a part picked earlier stays picked.
+        var chosen = Tools.SelectMany(t => t.Parts.Where(p => p.IsSelected).Select(p => (t.Root, p.Part.Title))).ToHashSet();
         var total = Math.Max(1L, usages.Sum(u => u.TotalBytes));
         MeasuredTotalText = ByteText.Format(usages.Sum(u => u.TotalBytes));
         SafeTotalText = ByteText.Format(SumParts(usages, DevPartKind.Cleanable, Tier.Safe));
@@ -219,7 +253,7 @@ public sealed partial class DeveloperToolsViewModel : ObservableObject
 
         Tools = [.. usages.Select(u =>
         {
-            var parts = u.Parts.Select(p => new DevPartViewModel(p, UpdateCounts)).ToList();
+            var parts = u.Parts.Select(p => new DevPartViewModel(p, UpdateCounts) { IsSelected = chosen.Contains((u.Root, p.Title)) }).ToList();
             var pct = 100.0 * u.TotalBytes / total;
             return new DevToolCardViewModel(u, parts, $"{pct:0.0}% of measured");
         })];

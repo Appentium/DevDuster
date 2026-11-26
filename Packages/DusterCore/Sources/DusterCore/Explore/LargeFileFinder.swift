@@ -26,6 +26,8 @@ public struct LargeFileOptions: Sendable {
 
 public enum LargeFileEvent: Sendable {
     case progress(path: String, filesScanned: Int)
+    /// Share of planned folders walked, from 0 to 1. Parallel work can deliver these slightly out of order.
+    case fraction(Double)
     case file(LargeFile)
     case finished([LargeFile])
 }
@@ -71,12 +73,70 @@ public struct LargeFileFinder: Sendable {
         let cutoff = options.minAgeDays.map { Date.now.addingTimeInterval(-TimeInterval($0) * 86_400) }
         let scanned = ScanCounter()
 
-        let perRoot = await roots.concurrentMap { root in
-            walkRoot(root, mobileDocuments: mobileDocuments, minBytes: options.minBytes, cutoff: cutoff, scanned: scanned, emit: emit)
+        // Folders near the top are split so progress can count them; files met on the way are checked at once.
+        var units: [URL] = []
+        var shallow: [LargeFile] = []
+        for root in roots {
+            guard let info = FilePath.status(root), FilePath.isDirectory(info) else { continue }
+            plan(root, depth: Self.splitDepth, device: info.st_dev, mobileDocuments: mobileDocuments,
+                 minBytes: options.minBytes, cutoff: cutoff, units: &units, files: &shallow)
+        }
+        shallow.forEach { emit(.file($0)) }
+
+        let total = units.count + 1
+        let done = ScanCounter()
+        let finishUnit: @Sendable () -> Void = {
+            let count = done.value.withLock { count in
+                count += 1
+                return count
+            }
+            emit(.fraction(min(1, Double(count) / Double(total))))
+        }
+        finishUnit()
+
+        let perUnit = await units.concurrentMap { unit in
+            let found = walkRoot(unit, mobileDocuments: mobileDocuments, minBytes: options.minBytes, cutoff: cutoff, scanned: scanned, emit: emit)
+            finishUnit()
+            return found
         }
 
         if Task.isCancelled { return [] }
-        return perRoot.flatMap { $0 }.sorted { $0.bytes > $1.bytes }
+        return (shallow + perUnit.flatMap { $0 }).sorted { $0.bytes > $1.bytes }
+    }
+
+    private static let splitDepth = 3
+
+    private func plan(
+        _ folder: URL,
+        depth: Int,
+        device: dev_t,
+        mobileDocuments: String,
+        minBytes: Int64,
+        cutoff: Date?,
+        units: inout [URL],
+        files: inout [LargeFile]
+    ) {
+        for child in FilePath.children(of: folder) {
+            guard let info = FilePath.status(child) else { continue }
+            if FilePath.isDirectory(info) {
+                // fts stays on one device and skips these folders, so the plan does too.
+                let path = child.filePath
+                guard info.st_dev == device, !Self.skippedNames.contains(child.lastPathComponent),
+                      path != mobileDocuments, path != "/System/Volumes/Data" else { continue }
+                if depth > 1 {
+                    plan(child, depth: depth - 1, device: device, mobileDocuments: mobileDocuments,
+                         minBytes: minBytes, cutoff: cutoff, units: &units, files: &files)
+                } else {
+                    units.append(child)
+                }
+            } else if info.st_mode & S_IFMT == S_IFREG {
+                let bytes = Int64(info.st_blocks) * 512
+                guard bytes >= minBytes else { continue }
+                let modified = FilePath.modified(info)
+                if let cutoff, modified >= cutoff { continue }
+                files.append(LargeFile(url: child, bytes: bytes, modified: modified))
+            }
+        }
     }
 
     private func walkRoot(

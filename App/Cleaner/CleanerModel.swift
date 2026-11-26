@@ -30,6 +30,8 @@ final class CleanerModel {
     private(set) var hasScanned = false
     private(set) var scanPhase: ScanPhase = .rules
     private(set) var currentPath = ""
+    /// From 0 to 1, or nil until the scan knows how much work there is.
+    private(set) var fraction: Double?
     private(set) var items: [ScanItem] = []
     private(set) var sections: [RuleSection] = []
     private(set) var skipped: [SkippedRule] = []
@@ -39,10 +41,13 @@ final class CleanerModel {
         didSet { rebuildGroups() }
     }
     var cleanSession = CleanSessionModel()
+    /// Where the main cleaner scans; Developer Tools picks its own folders instead.
+    let location: ScanLocationModel?
 
     init(developerOnly: Bool = false) {
         self.developerOnly = developerOnly
         catalog = RuleCatalog(developerOnly: developerOnly)
+        location = developerOnly ? nil : ScanLocationModel(key: "cleaner")
     }
 
     var selectedItems: [ScanItem] {
@@ -53,7 +58,8 @@ final class CleanerModel {
         selectedItems.reduce(0) { $0 + $1.bytes }
     }
 
-    func startScan(home: URL = FileManager.default.homeDirectoryForCurrentUser, scope: [URL]? = nil) {
+    /// Without a scope the chosen location is scanned. walksProjects is off for scans that only need cache folders.
+    func startScan(home: URL = FileManager.default.homeDirectoryForCurrentUser, scope: [URL]? = nil, walksProjects: Bool = true) {
         scanTask?.cancel()
         cleanSession.dismissSummary()
         items = []
@@ -63,12 +69,14 @@ final class CleanerModel {
         selectedIDs = []
         scanPhase = .rules
         currentPath = ""
+        fraction = nil
         hasScanned = false
         isScanning = true
 
         catalog = RuleCatalog(home: home, developerOnly: developerOnly)
         let catalog = self.catalog
-        let options = settings.scanOptions(scope: scope)
+        var options = settings.scanOptions(scope: scope ?? location?.scope)
+        options.walksProjects = walksProjects
         scanTask = Task { [weak self] in
             for await event in DusterScanner(catalog: catalog).scan(options) {
                 guard let self, !Task.isCancelled else { break }
@@ -124,6 +132,9 @@ final class CleanerModel {
         case .progress(let phase, let path):
             scanPhase = phase
             currentPath = path
+        case .fraction(let value):
+            // Parallel work can report slightly out of order; the bar never moves back.
+            fraction = max(fraction ?? 0, value)
         case .item(let item):
             items.append(item)
             rebuildGroups()

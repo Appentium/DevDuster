@@ -10,6 +10,8 @@ final class DevStorageModel {
 
     private(set) var usages: [DevToolUsage] = []
     private(set) var isMeasuring = false
+    /// Share of tools measured, from 0 to 1, or nil before measuring starts.
+    private(set) var fraction: Double?
     private(set) var externalVolumes: [Volume] = []
     var selectedVolumeURL: URL?
 
@@ -48,11 +50,26 @@ final class DevStorageModel {
         measureTask?.cancel()
         isMeasuring = true
         usages = []
+        fraction = nil
         let analyzer = analyzer
         measureTask = Task { [weak self] in
-            let usages = await Task.detached { await analyzer.run(items: items) }.value
+            // Each tool appears as soon as it is measured.
+            let measured = AsyncStream<(DevToolUsage?, Double)> { continuation in
+                let work = Task.detached {
+                    _ = await analyzer.run(items: items) { usage, share in continuation.yield((usage, share)) }
+                    continuation.finish()
+                }
+                continuation.onTermination = { _ in work.cancel() }
+            }
+            for await (usage, share) in measured {
+                guard let self, !Task.isCancelled else { break }
+                self.fraction = max(self.fraction ?? 0, share)
+                if let usage {
+                    self.usages.append(usage)
+                    self.usages.sort { $0.totalBytes > $1.totalBytes }
+                }
+            }
             guard let self, !Task.isCancelled else { return }
-            self.usages = usages
             self.isMeasuring = false
         }
     }

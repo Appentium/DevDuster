@@ -45,28 +45,58 @@ public sealed class ProjectWalker(ProjectArtifactMatcher matcher, IReadOnlyList<
         return [.. roots.Where(root => !roots.Any(other => PathTools.IsInside(root, other))).Order(PathTools.Comparer)];
     }
 
-    public ProjectWalk Walk(IReadOnlyList<string> roots, Action<string> progress, CancellationToken cancellation)
+    // Folders to walk one by one, which are also the units of progress. A folder that is not a project is split into
+    // its subfolders: no project encloses them below the root, so each one alone decides whether its artifacts are stale.
+    public IReadOnlyList<string> Plan(IReadOnlyList<string> roots, int splitDepth = 3) =>
+        [.. roots.Where(root => !IsToolchain(root)).SelectMany(root => Subfolders(root).SelectMany(child => Split(child, splitDepth - 1)))];
+
+    private IEnumerable<string> Split(string folder, int depth)
+    {
+        if (depth <= 0 || !CanSplit(folder)) return [folder];
+        return Subfolders(folder).SelectMany(child => Split(child, depth - 1));
+    }
+
+    private static IEnumerable<string> Subfolders(string folder) => PathTools.Children(folder).OfType<DirectoryInfo>().Select(child => child.FullName);
+
+    // Only a folder Visit would enter, and that no marker makes a project: a marker in the folder itself, or one such as
+    // ProjectSettings/ProjectVersion.txt one level down.
+    private bool CanSplit(string folder)
+    {
+        if (_excluded.Contains(folder) || PathTools.IsLink(folder) || PathTools.TryChildren(folder) is not { } children) return false;
+        var name = Path.GetFileName(folder);
+        if (IsInstalledApp(folder, children) || matcher.RuleForArtifact(folder) is not null || IsToolchain(folder)) return false;
+        if (name.StartsWith('.') || name.StartsWith('$') || name == "System Volume Information") return false;
+        if (children.OfType<FileInfo>().Any(file => matcher.ProjectLevels(file.FullName).Contains(0))) return false;
+        return !children.OfType<DirectoryInfo>().Any(child =>
+            PathTools.Children(child.FullName).OfType<FileInfo>().Any(file => matcher.ProjectLevels(file.FullName).Contains(1)));
+    }
+
+    public ProjectWalk Walk(IReadOnlyList<string> roots, Action<string> progress, CancellationToken cancellation) =>
+        Walk(roots, Plan(roots), progress, cancellation);
+
+    // Each planned folder holds its projects and every project around them, so that folder's walk alone decides
+    // whether its artifacts are stale. onFolder gets each finished folder and its walk, on a worker thread.
+    public ProjectWalk Walk(
+        IReadOnlyList<string> roots, IReadOnlyList<string> plan, Action<string> progress, CancellationToken cancellation,
+        Action<string, ProjectWalk>? onFolder = null)
     {
         var walk = new ProjectWalk(roots);
         var gate = new Lock();
-        foreach (var root in roots)
+        Parallel.ForEach(plan, new ParallelOptions { MaxDegreeOfParallelism = 8 }, start =>
         {
-            if (IsToolchain(root)) continue;
-            var children = PathTools.Children(root).OfType<DirectoryInfo>().ToList();
-            Parallel.ForEach(children, new ParallelOptions { MaxDegreeOfParallelism = 8 }, child =>
+            if (cancellation.IsCancellationRequested) return;
+            var frames = new List<Frame>();
+            var folder = new ProjectWalk(roots);
+            Visit(start, frames, folder.Artifacts, folder.Activity, progress, cancellation);
+            // A cut-short folder has incomplete activity, which could make an active project look stale.
+            if (cancellation.IsCancellationRequested) return;
+            onFolder?.Invoke(start, folder);
+            lock (gate)
             {
-                if (cancellation.IsCancellationRequested) return;
-                var frames = new List<Frame>();
-                var found = new List<ProjectArtifact>();
-                var projects = new Dictionary<string, DateTime>(PathTools.Comparer);
-                Visit(child.FullName, frames, found, projects, progress, cancellation);
-                lock (gate)
-                {
-                    walk.Artifacts.AddRange(found);
-                    foreach (var (path, newest) in projects) walk.Activity[path] = newest;
-                }
-            });
-        }
+                walk.Artifacts.AddRange(folder.Artifacts);
+                foreach (var (path, newest) in folder.Activity) walk.Activity[path] = newest;
+            }
+        });
         return walk;
     }
 

@@ -28,16 +28,28 @@ public sealed class DevStorageAnalyzer(UserFolders folders, IReadOnlyList<DevToo
         return null;
     }
 
-    public Task<IReadOnlyList<DevToolUsage>> RunAsync(IReadOnlyList<ScanItem> items, CancellationToken ct) =>
+    // The folders the tools keep their data in; a cleaner scan limited to these finds every item Usage can count.
+    public IReadOnlyList<string> Roots() => [.. tools.Select(RootOf).OfType<string>().Distinct(PathTools.Comparer)];
+
+    public Task<IReadOnlyList<DevToolUsage>> RunAsync(IReadOnlyList<ScanItem> items, CancellationToken ct, IProgress<ScanUpdate<DevToolUsage>>? progress = null) =>
         Task.Run(() =>
         {
             var usages = new List<DevToolUsage>();
+            var counter = new UnitCounter(tools.Count);
             foreach (var tool in tools)
             {
                 ct.ThrowIfCancellationRequested();
-                if (RootOf(tool) is not { } root) continue;
+                if (RootOf(tool) is not { } root)
+                {
+                    counter.Finish();
+                    continue;
+                }
+                progress?.Report(new ScanUpdate<DevToolUsage>(root, counter.Fraction));
                 var usage = Usage(tool, root, items);
-                if (usage.TotalBytes > 0) usages.Add(usage);
+                var fraction = counter.Finish();
+                if (usage.TotalBytes <= 0) continue;
+                usages.Add(usage);
+                progress?.Report(new ScanUpdate<DevToolUsage>(root, fraction, usage));
             }
             return (IReadOnlyList<DevToolUsage>)[.. usages.OrderByDescending(usage => usage.TotalBytes)];
         }, ct);
