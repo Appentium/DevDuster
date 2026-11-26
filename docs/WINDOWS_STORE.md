@@ -45,7 +45,7 @@ The manifest requests two restricted capabilities. Written reason for Store revi
 - `runFullTrust`: needed to read and remove developer files across the user profile, and to expose the packaged `duster.exe` console execution alias (`Windows.FullTrustApplication`).
 - `allowElevation`: needed for the System section. After a UAC prompt, the packaged native `devduster-helper.exe` runs one of three fixed tasks: Windows Update downloads, DISM component cleanup or crash dumps. It takes no paths from the caller.
 
-Review denied `unvirtualizedResources` (policy 10.6.3) for the first submission. From 0.1.3 the package leaves `AppData` write virtualization on. On Windows 10 1903 and later, deleting and changing existing files in `AppData` reaches the real files, so the Cleaner is not affected. New files and links the app creates in `AppData` go to a private per-app copy. DevDuster's own settings, logs and move journal therefore live in the package's private folder, and `duster.exe` sees the same copy. Move Tools refuses folders inside `AppData` in the packaged build (`RelocationCatalog`, `appDataIsVirtualized`), because the junction it leaves would be invisible to the tool that owns the folder.
+Review denied `unvirtualizedResources` (policy 10.6.3) for the first submission. From 0.3.0 the package leaves `AppData` write virtualization on. On Windows 10 1903 and later, deleting and changing existing files in `AppData` reaches the real files, so the Cleaner is not affected. New files and links the app creates in `AppData` go to a private per-app copy. DevDuster's own settings, logs and move journal therefore live in the package's private folder, and `duster.exe` sees the same copy. Move Tools refuses folders inside `AppData` in the packaged build (`RelocationCatalog`, `appDataIsVirtualized`), because the junction it leaves would be invisible to the tool that owns the folder.
 
 Confirm on the Windows PC that a Recycle Bin delete and a permanent delete in `%LOCALAPPDATA%` remove the real files. If review rejects the package again, the fallback is an unpackaged installer on winget and GitHub, signed with Azure Artifact Signing.
 
@@ -60,7 +60,7 @@ After the app is published in the Microsoft Store, it is installable with winget
 ## Owner checklist
 
 - [x] Reserve the name "DevDuster" in Partner Center.
-- [x] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `AppentiumLLC.DevDuster`, `CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B`, `0.1.3.0` (package family `AppentiumLLC.DevDuster_fz2ww0hnwqzk0`).
+- [x] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `AppentiumLLC.DevDuster`, `CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B`, `0.3.0.0` (package family `AppentiumLLC.DevDuster_fz2ww0hnwqzk0`).
 - [ ] Build and test on the Windows PC; the source has never been compiled. Check a real delete in `%LOCALAPPDATA%`.
 - [ ] Take Store screenshots and redact personal data: paths, project names and account names.
 - [ ] Submit the package with the written capability justification.
