@@ -1,6 +1,6 @@
 cask "devduster" do
-  version "0.2.0"
-  sha256 "49fb8b9747152bd062d90a3d72748d82c0547dd21249c093f275d395ab0c6256"
+  version "0.3.0"
+  sha256 "dbab4684d58fe24d6b6cf5310b691ab663323cc20f1da81916422fdf8e1fd0fa"
 
   url "https://github.com/Appentium/DevDuster/releases/download/v#{version}/DevDuster.zip"
   name "DevDuster"
