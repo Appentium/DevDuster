@@ -13,7 +13,10 @@ struct DevDusterApp: App {
         Window("DevDuster", id: "main") {
             RootView(selection: $selection, cleanerModel: cleanerModel, volumeMonitor: volumeMonitor)
                 .frame(minWidth: 820, minHeight: 540)
-                .task { settingsModel.applySchedule() }
+                .task {
+                    settingsModel.applySchedule()
+                    StatsSharing.sync()
+                }
         }
         .defaultSize(width: 980, height: 660)
         .commands {

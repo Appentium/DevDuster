@@ -12,7 +12,8 @@ struct SettingsView: View {
             AutomationSettingsView(model: model)
                 .tabItem { Label("Automation", systemImage: "clock.arrow.2.circlepath") }
         }
-        .frame(width: 520, height: 460)
+        .frame(width: 520, height: 520)
+        .onAppear { model.reloadSharing() }
     }
 }
 
@@ -54,6 +55,17 @@ private struct GeneralSettingsView: View {
                     }
                 }
                 Button("Add Folder…") { isChoosingFolder = true }
+            }
+
+            Section {
+                Toggle("Share anonymous cleaning totals", isOn: $model.shareStats)
+            } header: {
+                Text("Community Stats")
+            } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Adds your total to the counter and world map on devduster.com. DevDuster sends a random install ID, the platform, the app version and the total space it has freed. Our server works out your country from your IP address and does not store the address. No file names, paths, hardware or usage details are sent. Turning this off deletes your entry.")
+                    Link("What is sent and why", destination: StatsSharing.privacyURL)
+                }
             }
         }
         .formStyle(.grouped)

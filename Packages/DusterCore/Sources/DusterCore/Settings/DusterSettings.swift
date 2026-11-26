@@ -34,6 +34,11 @@ public struct DusterSettings: Sendable {
         static let scheduleWeekday = "scheduleWeekday"
         static let scheduleHour = "scheduleHour"
         static let scheduledCleanMovesToTrash = "scheduledCleanMovesToTrash"
+        static let shareStats = "shareStats"
+        static let shareStatsAsked = "shareStatsAsked"
+        static let statsInstallID = "statsInstallID"
+        static let statsPendingRemovalID = "statsPendingRemovalID"
+        static let statsLastSentBytes = "statsLastSentBytes"
     }
 
     // UserDefaults is documented as thread-safe but is not annotated Sendable.
@@ -54,6 +59,8 @@ public struct DusterSettings: Sendable {
             Key.scheduleWeekday: CleanSchedule.standard.weekday,
             Key.scheduleHour: CleanSchedule.standard.hour,
             Key.scheduledCleanMovesToTrash: true,
+            Key.shareStats: false,
+            Key.shareStatsAsked: false,
         ])
         self.defaults = defaults
     }
@@ -111,6 +118,32 @@ public struct DusterSettings: Sendable {
     public var scheduledCleanMovesToTrash: Bool {
         get { defaults.bool(forKey: Key.scheduledCleanMovesToTrash) }
         nonmutating set { defaults.set(newValue, forKey: Key.scheduledCleanMovesToTrash) }
+    }
+
+    // Opt-in anonymous totals for the devduster.com counter; off until the user turns it on.
+    public var shareStats: Bool {
+        get { defaults.bool(forKey: Key.shareStats) }
+        nonmutating set { defaults.set(newValue, forKey: Key.shareStats) }
+    }
+
+    public var shareStatsAsked: Bool {
+        get { defaults.bool(forKey: Key.shareStatsAsked) }
+        nonmutating set { defaults.set(newValue, forKey: Key.shareStatsAsked) }
+    }
+
+    public var statsInstallID: String? {
+        get { defaults.string(forKey: Key.statsInstallID) }
+        nonmutating set { defaults.set(newValue, forKey: Key.statsInstallID) }
+    }
+
+    public var statsPendingRemovalID: String? {
+        get { defaults.string(forKey: Key.statsPendingRemovalID) }
+        nonmutating set { defaults.set(newValue, forKey: Key.statsPendingRemovalID) }
+    }
+
+    public var statsLastSentBytes: Int64? {
+        get { (defaults.object(forKey: Key.statsLastSentBytes) as? NSNumber)?.int64Value }
+        nonmutating set { defaults.set(newValue.map { NSNumber(value: $0) }, forKey: Key.statsLastSentBytes) }
     }
 
     public var lowSpaceThresholds: LowSpaceThresholds {

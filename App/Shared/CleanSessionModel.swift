@@ -86,6 +86,7 @@ final class CleanSessionModel {
             affectedVolumes: affectedVolumes
         )
         isCleaning = false
+        StatsSharing.sync()
         return cleanedIDs
     }
 

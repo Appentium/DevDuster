@@ -31,6 +31,12 @@ final class SettingsModel {
     var scheduleWeekday: Int { didSet { updateSchedule { $0.schedule.weekday = scheduleWeekday } } }
     var scheduleHour: Int { didSet { updateSchedule { $0.schedule.hour = scheduleHour } } }
     var scheduledCleanMovesToTrash: Bool { didSet { updateSchedule { $0.scheduledCleanMovesToTrash = scheduledCleanMovesToTrash } } }
+    var shareStats: Bool {
+        didSet {
+            guard shareStats != oldValue, shareStats != settings.shareStats else { return }
+            StatsSharing.setSharing(shareStats)
+        }
+    }
 
     init() {
         let savedTheme = UserDefaults.standard.string(forKey: Self.themeKey).flatMap(AppTheme.init) ?? .light
@@ -47,6 +53,12 @@ final class SettingsModel {
         scheduleWeekday = settings.schedule.weekday
         scheduleHour = settings.schedule.hour
         scheduledCleanMovesToTrash = settings.scheduledCleanMovesToTrash
+        shareStats = settings.shareStats
+    }
+
+    // The clean summary can turn sharing on too, so the Settings window reads it again when shown.
+    func reloadSharing() {
+        shareStats = settings.shareStats
     }
 
     func addExcludedFolders(_ urls: [URL]) {

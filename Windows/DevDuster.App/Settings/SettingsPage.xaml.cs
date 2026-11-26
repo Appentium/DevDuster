@@ -14,6 +14,12 @@ public sealed partial class SettingsPage : Page
 
     public SettingsViewModel ViewModel { get; }
 
+    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    {
+        base.OnNavigatedTo(e);
+        ViewModel.RefreshSharing();
+    }
+
     private async void OnAddExcludedClicked(object sender, RoutedEventArgs e)
     {
         if (App.Current.MainWindow is not { } window) return;

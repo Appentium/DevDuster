@@ -40,6 +40,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         SelectedHourIndex = Math.Clamp(s.ScheduleHour, 0, 23);
         ScheduledCleanRecycles = s.ScheduledCleanRecycles;
         TrayEnabled = s.TrayEnabled;
+        ShareStats = s.ShareStats;
         Hours = [.. Enumerable.Range(0, 24).Select(h => $"{h:00}:00")];
         _initialized = true;
     }
@@ -98,6 +99,27 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [ObservableProperty]
     public partial bool TrayEnabled { get; set; }
+
+    [ObservableProperty]
+    public partial bool ShareStats { get; set; }
+
+    // The clean summary can change this too, so the cached page reads it again when shown.
+    public void RefreshSharing()
+    {
+        _refreshing = true;
+        ShareStats = _services.Settings.ShareStats;
+        _refreshing = false;
+    }
+
+    private bool _refreshing;
+
+    partial void OnShareStatsChanged(bool value)
+    {
+        if (!_initialized || _refreshing || value == _services.Settings.ShareStats) return;
+        if (value) _services.Stats.Enable();
+        else _services.Stats.Disable();
+        _services.SyncStats();
+    }
 
     partial void OnTrayEnabledChanged(bool value)
     {

@@ -40,6 +40,10 @@ struct CleanResultSummaryView: View {
                 }
             }
 
+            if summary.cleanedCount > 0 {
+                ShareStatsPrompt()
+            }
+
             if !summary.issues.isEmpty {
                 Divider()
                 Text("Failures & Refusals (\(summary.issues.count))")
@@ -60,5 +64,40 @@ struct CleanResultSummaryView: View {
         }
         .padding(14)
         .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+// Asked once, after the first clean that removed something; Settings has the same switch.
+private struct ShareStatsPrompt: View {
+    @State private var isVisible = !DusterSettings().shareStatsAsked
+
+    var body: some View {
+        if isVisible {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Add your total to the DevDuster world counter?")
+                    .font(.subheadline.weight(.semibold))
+                Text("Shares only a random ID, the platform, the app version and the total space freed. No paths or file names. You can turn it off in Settings.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 8) {
+                    Button("Share Anonymously") {
+                        StatsSharing.setSharing(true)
+                        isVisible = false
+                    }
+                    .buttonStyle(.borderedProminent)
+                    Button("No Thanks") {
+                        StatsSharing.decline()
+                        isVisible = false
+                    }
+                    .buttonStyle(.bordered)
+                    Link("What is sent", destination: StatsSharing.privacyURL)
+                        .font(.callout)
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(.background.opacity(0.6), in: RoundedRectangle(cornerRadius: 8))
+        }
     }
 }

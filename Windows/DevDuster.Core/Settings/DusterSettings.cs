@@ -55,6 +55,13 @@ public sealed class DusterSettings
     public bool TrayEnabled { get; set; } = true;
     public AppThemeChoice Theme { get; set; } = AppThemeChoice.System;
 
+    // Opt-in anonymous totals for the devduster.com counter; off until the user turns it on.
+    public bool ShareStats { get; set; }
+    public bool ShareStatsAsked { get; set; }
+    public string? StatsInstallId { get; set; }
+    public string? StatsPendingRemovalId { get; set; }
+    public long? StatsLastSentBytes { get; set; }
+
     // Per tool, the folder its scans start from; "*" means everywhere. A tool missing here starts everywhere.
     public Dictionary<string, string> RememberedLocations { get; set; } = [];
 

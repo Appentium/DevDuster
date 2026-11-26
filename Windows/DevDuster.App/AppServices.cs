@@ -4,6 +4,7 @@ using DevDuster.Core.Relocate;
 using DevDuster.Core.Rules;
 using DevDuster.Core.Scan;
 using DevDuster.Core.Settings;
+using DevDuster.Core.Stats;
 using DevDuster.Platform;
 
 namespace DevDuster.App;
@@ -34,6 +35,7 @@ public sealed class AppServices
         RecycleBin = new RecycleBin();
         InstalledPrograms = new InstalledPrograms();
         CleanScheduler = new CleanScheduler();
+        Stats = new StatsReporter(Settings, SettingsStore.Save, CreateStatsClient(), AppVersion);
         RecoveryTask = Task.Run(RunRecovery);
     }
 
@@ -59,6 +61,7 @@ public sealed class AppServices
     public RecycleBin RecycleBin { get; }
     public InstalledPrograms InstalledPrograms { get; }
     public CleanScheduler CleanScheduler { get; }
+    public StatsReporter Stats { get; }
     public Task RecoveryTask { get; }
     public string? RecoveryError { get; private set; }
     public ScanReport? LastScanReport { get; private set; }
@@ -90,7 +93,37 @@ public sealed class AppServices
         ScanReportChanged?.Invoke();
     }
 
-    public void NotifyHistoryChanged() => HistoryChanged?.Invoke();
+    public void NotifyHistoryChanged()
+    {
+        HistoryChanged?.Invoke();
+        SyncStats();
+    }
+
+    // Does nothing unless the user turned on anonymous totals; a failed send is retried on the next sync.
+    public void SyncStats() => _ = Stats.SyncAsync(() => Task.Run(() => new CleanHistory(CleanLog.Records()).TotalBytes));
+
+    public static string AppVersion
+    {
+        get
+        {
+            try
+            {
+                var version = global::Windows.ApplicationModel.Package.Current.Id.Version;
+                return $"{version.Major}.{version.Minor}.{version.Build}";
+            }
+            catch (InvalidOperationException)
+            {
+                return typeof(AppServices).Assembly.GetName().Version?.ToString(3) ?? "0.0.0";
+            }
+        }
+    }
+
+    private static HttpClient CreateStatsClient()
+    {
+        var client = new HttpClient { Timeout = TimeSpan.FromSeconds(15) };
+        client.DefaultRequestHeaders.UserAgent.ParseAdd($"DevDuster/{AppVersion}");
+        return client;
+    }
 
     public void RequestNavigation(string tag, object? parameter = null) => NavigationRequested?.Invoke(tag, parameter);
 

@@ -18,6 +18,7 @@ public partial class App : Application
     {
         MainWindow = new MainWindow(Services);
         MainWindow.Activate();
+        Services.SyncStats();
     }
 
     public void ShowMainWindow()

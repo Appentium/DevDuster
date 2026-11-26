@@ -30,7 +30,13 @@ Requires Windows 10 22H2 or later, or Windows 11, on x64 or ARM64.
 
 ## Privacy statement
 
-DevDuster collects no data and sends nothing. Scanning and cleaning run locally on your PC. There are no network calls in the Windows source: a search of the C# files for network APIs (`HttpClient`, `WebRequest`, `WebClient`, sockets, DNS and similar) found none. The only `http` strings in the repository are XML/XAML namespace declarations in manifest and XAML files; they are identifiers, not requests. There are no accounts, telemetry or analytics. The Microsoft Store handles installation and updates.
+Scanning and cleaning run locally on your PC. DevDuster has no accounts, analytics, advertising or crash reporting, and sends nothing by default.
+
+One optional feature uses the network: **Share anonymous cleaning totals** (off by default; the app asks once after the first clean, and the switch is in Settings → Community Stats). When it is on, the app sends `https://devduster.com/api/report.php` a random install ID made on the PC, the platform, the app version and one number: the total bytes DevDuster has freed. No file names, paths, hardware or usage details. The server derives a country code from the request's IP address and does not store the address with the entry. The website publishes only totals, and countries with fewer than 3 users are grouped. Turning the switch off makes the app delete its entry on the server. This is the only network code in the Windows source (`DevDuster.Core/Stats/StatsReporter.cs`), and it is why the manifest declares `internetClient`. Full policy: https://devduster.com/privacy.html#stats
+
+The Microsoft Store handles installation and updates.
+
+In Partner Center, answer "Does this app access, collect or transmit personal information?" with yes and give the privacy policy URL above, since the IP address of the report reaches our server.
 
 ## Restricted capabilities
 
