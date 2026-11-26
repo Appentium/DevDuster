@@ -44,12 +44,12 @@ Confirm on the Windows PC that a delete in `%LOCALAPPDATA%` is real. If review r
 
 ## winget
 
-After the app is published in the Microsoft Store, it is installable with winget through the `msstore` source. No separate winget package is needed. Check the Store ID and the install command on the PC after publishing.
+After the app is published in the Microsoft Store, it is installable with winget through the `msstore` source. No separate winget package is needed. Store ID `9PNLNRCZVSCW`: `winget install 9PNLNRCZVSCW --source msstore`. Store page: https://apps.microsoft.com/detail/9PNLNRCZVSCW
 
 ## Owner checklist
 
-- [ ] Reserve the name "DevDuster" in Partner Center.
-- [ ] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `Appentium.DevDuster`, `CN=Appentium LLC`, `0.1.0.0`.
+- [x] Reserve the name "DevDuster" in Partner Center.
+- [x] Set the publisher identity in `Windows/DevDuster.App/Package.appxmanifest` to match the Store account (`Identity Name` and `Publisher`), and keep the version in step with the release. Current values: `AppentiumLLC.DevDuster`, `CN=3DDDA94D-73E3-4BEE-99A9-29D5E2E6AB1B`, `0.1.0.0` (package family `AppentiumLLC.DevDuster_fz2ww0hnwqzk0`).
 - [ ] Build and test on the Windows PC; the source has never been compiled. Check a real delete in `%LOCALAPPDATA%`.
 - [ ] Take Store screenshots and redact personal data: paths, project names and account names.
 - [ ] Submit the package with the written capability justification.
