@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-macos.zip"><b>Download for Mac</b></a> · <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip"><b>Download for Windows</b></a> · <a href="https://devduster.com">devduster.com</a>
+  <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-macos.zip"><b>Download for Mac</b></a> · <a href="https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-Setup-x64.exe"><b>Download for Windows</b></a> · <a href="https://devduster.com">devduster.com</a>
 </p>
 
 <p align="center">
@@ -82,7 +82,7 @@ Requires macOS 14 Sonoma or later, on Apple silicon or Intel. The app is signed 
 
 ### Windows
 
-Download [`DevDuster-windows-x64.zip`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip) from the latest release, unzip it anywhere and run `DevDuster.App.exe`. Requires Windows 10 22H2 or later, or Windows 11. More in [Windows](#windows).
+Download [`DevDuster-Setup-x64.exe`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-Setup-x64.exe) from the latest release and run it. It installs for your user account without an admin prompt, adds DevDuster to the Start menu, and can put `duster` on your PATH. Uninstall it from **Settings → Apps**. Requires Windows 10 22H2 or later, or Windows 11. More in [Windows](#windows).
 
 ### Command line (macOS)
 
@@ -151,9 +151,16 @@ The CLI commands are:
 
 Microsoft Store: coming soon. See [docs/WINDOWS_STORE.md](docs/WINDOWS_STORE.md) for the Store listing.
 
-A portable x64 build ships in the same release as the Mac app: download [`DevDuster-windows-x64.zip`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-windows-x64.zip) from the [latest release](https://github.com/Appentium/DevDuster/releases/latest). Unzip it anywhere and run `DevDuster.App.exe`; `duster.exe` sits in the same folder. It has no Store limits: Move Tools can also move folders inside `AppData`. It is not code-signed yet, so Windows SmartScreen asks for confirmation the first time (More info → Run anyway). There are no automatic updates.
+The x64 installer ships in the same release as the Mac app: download [`DevDuster-Setup-x64.exe`](https://github.com/Appentium/DevDuster/releases/latest/download/DevDuster-Setup-x64.exe) from the [latest release](https://github.com/Appentium/DevDuster/releases/latest). It installs into `%LOCALAPPDATA%\Programs\DevDuster` (or Program Files if you choose all users). To update, run a newer Setup over it. It has no Store limits: Move Tools can also move folders inside `AppData`. It is not code-signed yet, so Windows SmartScreen asks for confirmation the first time (More info → Run anyway). There are no automatic updates. The same app is also attached as a portable folder, `DevDuster-windows-x64.zip`.
 
-To build it: `dotnet publish Windows/DevDuster.App -c Release -p:Platform=x64 -p:Unpackaged=true -o <folder>`.
+To build the installer, install [Inno Setup 6](https://jrsoftware.org/isinfo.php) (`winget install JRSoftware.InnoSetup`), then:
+
+```bash
+dotnet publish Windows/DevDuster.App -c Release -p:Platform=x64 -p:Unpackaged=true -o Windows/build/stage/DevDuster
+ISCC.exe /DAppVersion=0.3.0 Windows/Installer/DevDuster.iss
+```
+
+The script is `Windows/Installer/DevDuster.iss`, and the output is `Windows/build/DevDuster-Setup-x64.exe`. Keep that file name when you attach it to a release, so the "latest" download link keeps working.
 
 DevDuster is an Appentium project: https://appentium.com.
 
