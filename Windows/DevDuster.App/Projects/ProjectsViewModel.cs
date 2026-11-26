@@ -77,6 +77,8 @@ public sealed partial class ProjectGroupViewModel : ObservableObject
         }
         set
         {
+            // The checkbox echoes the state it was just given back here; only a real click changes it.
+            if (value == IsChecked) return;
             var target = value ?? false;
             foreach (var folder in Folders) folder.IsSelected = target;
             OnPropertyChanged(nameof(IsChecked));

@@ -56,6 +56,8 @@ public sealed partial class RuleGroupViewModel : ObservableObject
         }
         set
         {
+            // The checkbox echoes the state it was just given back here; only a real click changes it.
+            if (value == IsChecked) return;
             var target = value ?? false;
             foreach (var item in Items) item.IsSelected = target;
             OnPropertyChanged(nameof(IsChecked));
