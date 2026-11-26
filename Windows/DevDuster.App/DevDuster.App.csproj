@@ -22,6 +22,8 @@
     <Content Include="Assets\SplashScreen.png" />
     <Content Include="Assets\Square150x150Logo.png" />
     <Content Include="Assets\Square44x44Logo.png" />
+    <!-- Taskbar and Start list sizes. Without the unplated ones Windows draws the icon on an accent-color square. -->
+    <Content Include="Assets\Square44x44Logo.targetsize-*.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Tray.ico" />
     <Content Include="Assets\Wide310x150Logo.png" />
